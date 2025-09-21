@@ -144,6 +144,11 @@
             color: #66aacc;
         }
 
+        .save-status.loading {
+            border-color: #5a2d5a;
+            color: #cc66cc;
+        }
+
         /* Menu Panel */
         .menu-panel {
             position: fixed;
@@ -405,6 +410,7 @@
                 <button class="menu-button-item" onclick="detailedDiagnostic()">🔧 Test Setup</button>
                 <button class="menu-button-item" onclick="connectGoogleDrive()" id="driveConnectBtn">Connect Drive</button>
                 <button class="menu-button-item" onclick="verifyFolderAccess()" id="driveVerifyBtn" style="display: none;">Verify Folder</button>
+                <button class="menu-button-item" onclick="loadFromGoogleDrive()" id="driveLoadBtn" style="display: none;">Load from Drive</button>
                 <button class="menu-button-item" onclick="resetBackupFile()" id="driveResetBtn" style="display: none;">Reset Backup File</button>
                 <button class="menu-button-item" onclick="manualBackup()" id="driveBackupBtn" style="display: none;">Manual Backup</button>
                 <button class="menu-button-item" onclick="disconnectGoogleDrive()" id="driveDisconnectBtn" style="display: none;">Disconnect</button>
@@ -558,6 +564,15 @@
                 case 'backed-up':
                     saveStatusElement.textContent = '● Backed up';
                     saveStatusElement.classList.add('backup');
+                    setTimeout(() => showSaveStatus('saved'), 2000);
+                    break;
+                case 'loading':
+                    saveStatusElement.textContent = '● Loading...';
+                    saveStatusElement.classList.add('loading');
+                    break;
+                case 'loaded':
+                    saveStatusElement.textContent = '● Loaded';
+                    saveStatusElement.classList.add('loading');
                     setTimeout(() => showSaveStatus('saved'), 2000);
                     break;
                 case 'error':
@@ -868,6 +883,91 @@ Check console (F12) for full details.`);
             });
         }
 
+        function loadFromGoogleDrive() {
+            if (!isSignedIn || !accessToken) {
+                updateDriveStatus('❌ Not connected to Google Drive');
+                return;
+            }
+
+            updateDriveStatus('📥 Loading from Google Drive...');
+            showSaveStatus('loading');
+            console.log('📥 Starting Google Drive load...');
+
+            // Search for the backup file in the target folder
+            const query = `name='${BACKUP_FILE_NAME}' and parents in '${TARGET_FOLDER_ID}' and trashed=false`;
+            
+            fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`, {
+                method: 'GET',
+                headers: new Headers({
+                    'Authorization': `Bearer ${accessToken}`
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+
+                console.log('🔍 Search results:', data);
+
+                if (!data.files || data.files.length === 0) {
+                    updateDriveStatus('📭 No backup file found in Google Drive<br>💡 Start writing to create your first backup');
+                    showSaveStatus('saved');
+                    return;
+                }
+
+                // Get the first (most recent) file
+                const file = data.files[0];
+                currentFileId = file.id;
+                localStorage.setItem('focusWriterFileId', currentFileId);
+
+                console.log('📄 Found backup file:', file);
+
+                // Download the file content
+                return fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+                    method: 'GET',
+                    headers: new Headers({
+                        'Authorization': `Bearer ${accessToken}`
+                    })
+                });
+            })
+            .then(response => {
+                if (!response) return; // No file found case
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return response.text();
+            })
+            .then(content => {
+                if (!content && content !== '') return; // No file found case
+                
+                console.log('📥 Loaded content length:', content.length);
+
+                // Load content into editors
+                currentEditor.innerText = content;
+                focusEditor.innerText = content;
+                
+                // Save locally
+                localStorage.setItem('focusWriterContent', currentEditor.innerHTML);
+                localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+                
+                updateStats();
+                showSaveStatus('loaded');
+                
+                const fileInfo = `✅ Document loaded from Google Drive<br>📄 File: ${BACKUP_FILE_NAME}<br>📊 ${content.length} characters loaded<br>⏰ Auto-backup every 5 minutes`;
+                updateDriveStatus(fileInfo);
+                
+                console.log('✅ Document loaded successfully from Google Drive');
+            })
+            .catch(error => {
+                console.error('❌ Load error:', error);
+                updateDriveStatus(`❌ Failed to load from Google Drive: ${error.message}<br>🔧 Check console for details`);
+                showSaveStatus('error');
+            });
+        }
+
         function loadGAPI() {
             return new Promise((resolve, reject) => {
                 if (typeof gapi !== 'undefined' && gapi.client) {
@@ -925,7 +1025,7 @@ Check console (F12) for full details.`);
                             accessToken = response.access_token;
                             isSignedIn = true;
                             updateDriveUI();
-                            updateDriveStatus('✅ Connected to Google Drive<br>🔄 Auto-backup every 5 minutes');
+                            updateDriveStatus('✅ Connected to Google Drive<br>📥 Loading your document...');
                             console.log('✅ Successfully connected to Google Drive');
                             
                             loadGAPI().then(() => {
@@ -936,27 +1036,15 @@ Check console (F12) for full details.`);
                                 setTimeout(() => {
                                     verifyFolderAccess();
                                     
-                                    // Check if current file is in target folder
-                                    if (currentFileId) {
-                                        verifyCurrentFile().then(isValidFile => {
-                                            if (!isValidFile) {
-                                                console.log('⚠️ Existing file not in target folder - resetting...');
-                                                resetBackupFile();
-                                            }
-                                            
-                                            // Start auto-backup timer after verification
-                                            setTimeout(() => {
-                                                startBackupTimer();
-                                                performAutoBackup();
-                                            }, 2000);
-                                        });
-                                    } else {
-                                        // No existing file, start backup timer
+                                    // Auto-load the document from Google Drive
+                                    setTimeout(() => {
+                                        loadFromGoogleDrive();
+                                        
+                                        // Start auto-backup timer after loading
                                         setTimeout(() => {
                                             startBackupTimer();
-                                            performAutoBackup();
-                                        }, 2000);
-                                    }
+                                        }, 3000);
+                                    }, 2000);
                                 }, 1000);
                             });
                         }
@@ -1166,6 +1254,7 @@ Check console (F12) for full details.`);
             const backupBtn = document.getElementById('driveBackupBtn');
             const verifyBtn = document.getElementById('driveVerifyBtn');
             const resetBtn = document.getElementById('driveResetBtn');
+            const loadBtn = document.getElementById('driveLoadBtn');
             
             if (isSignedIn) {
                 connectBtn.style.display = 'none';
@@ -1173,12 +1262,14 @@ Check console (F12) for full details.`);
                 backupBtn.style.display = 'block';
                 verifyBtn.style.display = 'block';
                 resetBtn.style.display = 'block';
+                loadBtn.style.display = 'block';
             } else {
                 connectBtn.style.display = 'block';
                 disconnectBtn.style.display = 'none';
                 backupBtn.style.display = 'none';
                 verifyBtn.style.display = 'none';
                 resetBtn.style.display = 'none';
+                loadBtn.style.display = 'none';
             }
         }
 
