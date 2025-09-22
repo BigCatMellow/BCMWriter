@@ -17,7 +17,7 @@ from pathlib import Path
 
 # Configuration
 PORT = 8000
-HTML_FILENAME = "focus-writer.html"
+HTML_FILENAME = "index.html"
 
 def get_python_command():
     """Get the correct Python command for this platform"""
