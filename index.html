@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Focus Writer - Enhanced</title>
+    <title>Focus Writer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -36,11 +36,6 @@
             margin-left: 350px;
         }
 
-        .writing-area.typewriter-mode {
-            align-items: flex-start;
-            padding-top: 30vh;
-        }
-
         .editor-container {
             width: min(800px, 90vw);
             height: 80vh;
@@ -49,12 +44,6 @@
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             overflow: hidden;
-            position: relative;
-        }
-
-        .typewriter-mode .editor-container {
-            height: 110px;
-            overflow: visible;
         }
 
         .editor {
@@ -78,12 +67,7 @@
             scrollbar-color: #444 #1a1a1a;
         }
 
-        .typewriter-mode .editor {
-            overflow-y: visible;
-            height: auto;
-            min-height: 200px;
-        }
-
+        /* Webkit browsers (Chrome, Safari, Edge) */
         .editor::-webkit-scrollbar {
             width: 8px;
         }
@@ -116,77 +100,7 @@
             font-style: normal;
         }
 
-        /* Writing aids styling */
-        .note-text {
-            font-size: 0.8em;
-            color: #888;
-            background: #2a2a2a;
-            padding: 2px 4px;
-            border-radius: 2px;
-            border: 1px solid #444;
-        }
-
-        /* Markdown styling */
-        .markdown-h1 {
-            font-size: 2em;
-            font-weight: 600;
-            color: #ffffff;
-            margin: 0.5em 0;
-            border-bottom: 2px solid #444;
-            padding-bottom: 0.3em;
-        }
-
-        .markdown-h2 {
-            font-size: 1.5em;
-            font-weight: 600;
-            color: #ffffff;
-            margin: 0.4em 0;
-            border-bottom: 1px solid #444;
-            padding-bottom: 0.2em;
-        }
-
-        .markdown-h3 {
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #ffffff;
-            margin: 0.3em 0;
-        }
-
-        .markdown-bold {
-            font-weight: 600;
-            color: #ffffff;
-        }
-
-        .markdown-italic {
-            font-style: italic;
-            color: #cccccc;
-        }
-
-        .markdown-strike {
-            text-decoration: line-through;
-            color: #888;
-        }
-
-        .markdown-quote {
-            border-left: 3px solid #666;
-            padding-left: 1em;
-            margin: 0.5em 0;
-            color: #aaa;
-            font-style: italic;
-        }
-
-        .markdown-list {
-            margin: 0.5em 0;
-            padding-left: 1.5em;
-        }
-
-        .markdown-bracket {
-            color: #66aacc;
-            background: rgba(102, 170, 204, 0.1);
-            padding: 1px 3px;
-            border-radius: 2px;
-        }
-
+        /* Menu Button */
         .menu-button {
             position: fixed;
             top: 20px;
@@ -245,6 +159,7 @@
             top: 6px;
         }
 
+        /* Save Status */
         .save-status {
             position: fixed;
             top: 20px;
@@ -276,32 +191,12 @@
             color: #66aacc;
         }
 
-        .save-status.merged {
-            border-color: #5a2d2d;
-            color: #cc6666;
+        .save-status.loading {
+            border-color: #5a2d5a;
+            color: #cc66cc;
         }
 
-        /* Hotkey indicator */
-        .hotkey-indicator {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: #2a2a2a;
-            border: 1px solid #3a3a3a;
-            color: #888;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 11px;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            max-width: 300px;
-        }
-
-        .hotkey-indicator.show {
-            opacity: 0.8;
-        }
-
+        /* Menu Panel */
         .menu-panel {
             position: fixed;
             top: 0;
@@ -376,7 +271,6 @@
             font-weight: 500;
             transition: all 0.15s ease;
             text-align: center;
-            position: relative;
         }
 
         .menu-button-item:hover {
@@ -387,23 +281,6 @@
             background: #ffffff;
             color: #1a1a1a;
             border-color: #ffffff;
-        }
-
-        .menu-button-item .hotkey {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 10px;
-            color: #888;
-            background: #2a2a2a;
-            padding: 2px 4px;
-            border-radius: 2px;
-        }
-
-        .menu-button-item.active .hotkey {
-            color: #666;
-            background: #ddd;
         }
 
         .stats-grid {
@@ -435,6 +312,7 @@
             margin-top: 4px;
         }
 
+        /* Focus Mode */
         .focus-mode {
             position: fixed;
             top: 0;
@@ -484,6 +362,7 @@
             opacity: 1;
         }
 
+        /* Overlay */
         .overlay {
             position: fixed;
             top: 0;
@@ -515,26 +394,6 @@
             margin-top: 8px;
             font-size: 11px;
             color: #666;
-        }
-
-        /* Merge notification styling */
-        .merge-notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #cc6666;
-            color: white;
-            padding: 12px 16px;
-            border-radius: 4px;
-            font-size: 13px;
-            z-index: 1001;
-            max-width: 300px;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
         }
 
         @media (max-width: 768px) {
@@ -577,12 +436,12 @@
             <div class="editor" 
                  contenteditable="true" 
                  id="editor"
-                 spellcheck="true"
                  placeholder="Start writing...">
             </div>
         </div>
     </div>
 
+    <!-- Menu Button -->
     <button class="menu-button" id="menuButton">
         <div class="hamburger">
             <span></span>
@@ -591,88 +450,22 @@
         </div>
     </button>
 
+    <!-- Save Status -->
     <div class="save-status saved" id="saveStatus">● Saved</div>
 
-    <div class="hotkey-indicator" id="hotkeyIndicator"></div>
-
+    <!-- Menu Panel -->
     <div class="menu-panel" id="menuPanel">
         <div class="menu-header">
             <div class="menu-title">◼ Focus Writer</div>
-            <div class="menu-subtitle">Enhanced with writing aids</div>
+            <div class="menu-subtitle">Distraction-free writing with auto-backup</div>
         </div>
 
         <div class="menu-section">
             <h3>Format</h3>
             <div class="menu-buttons row">
-                <button class="menu-button-item" onclick="formatText('bold')" id="boldBtn">
-                    Bold
-                </button>
-                <button class="menu-button-item" onclick="formatText('italic')" id="italicBtn">
-                    Italic
-                </button>
-                <button class="menu-button-item" onclick="formatText('underline')" id="underlineBtn">
-                    Under
-                </button>
-                <button class="menu-button-item" onclick="formatText('strikethrough')" id="strikethroughBtn">
-                    Strike
-                </button>
-                <button class="menu-button-item" onclick="insertNote()" id="noteBtn">
-                    Note
-                </button>
-                <button class="menu-button-item" onclick="insertSuperscript()" id="superBtn">
-                    Super
-                </button>
-                <button class="menu-button-item" onclick="insertSubscript()" id="subBtn">
-                    Sub
-                </button>
-                <button class="menu-button-item" onclick="clearFormatting()" id="clearBtn">
-                    Clear
-                </button>
-                <button class="menu-button-item" onclick="insertBrackets()" id="bracketBtn">
-                    Brackets
-                </button>
-            </div>
-        </div>
-
-        <div class="menu-section">
-            <h3>Markdown</h3>
-            <div class="menu-buttons">
-                <button class="menu-button-item" onclick="toggleMarkdown()" id="markdownBtn">
-                    Live Markdown
-                </button>
-                <button class="menu-button-item" onclick="showMarkdownHelp()" id="markdownHelpBtn">
-                    Markdown Help
-                </button>
-            </div>
-            <div class="status-message" style="font-size: 10px; color: #555; margin-top: 8px; max-height: 60px; overflow: hidden;">
-                **bold** *italic* ~~strike~~ # Header - List > Quote [ ]
-            </div>
-        </div>
-
-        <div class="menu-section">
-            <h3>Writing Aids</h3>
-            <div class="menu-buttons">
-                <button class="menu-button-item" onclick="toggleSpellCheck()" id="spellCheckBtn">
-                    Spell Check
-                </button>
-                <button class="menu-button-item" onclick="runGrammarCheck()" id="grammarCheckBtn">
-                    Grammar Check
-                </button>
-                <button class="menu-button-item" onclick="showWordSuggestions()" id="suggestionsBtn">
-                    Word Suggestions
-                </button>
-            </div>
-        </div>
-
-        <div class="menu-section">
-            <h3>Focus Modes</h3>
-            <div class="menu-buttons">
-                <button class="menu-button-item" onclick="toggleFocusMode()" id="focusModeBtn">
-                    Ultra Focus <span class="hotkey">F11</span>
-                </button>
-                <button class="menu-button-item" onclick="toggleTypewriterMode()" id="typewriterBtn">
-                    Typewriter Mode <span class="hotkey">F10</span>
-                </button>
+                <button class="menu-button-item" onclick="formatText('bold')" id="boldBtn">Bold</button>
+                <button class="menu-button-item" onclick="formatText('italic')" id="italicBtn">Italic</button>
+                <button class="menu-button-item" onclick="formatText('underline')" id="underlineBtn">Underline</button>
             </div>
         </div>
 
@@ -687,7 +480,7 @@
                 <button class="menu-button-item" onclick="manualBackup()" id="driveBackupBtn" style="display: none;">Manual Backup</button>
                 <button class="menu-button-item" onclick="disconnectGoogleDrive()" id="driveDisconnectBtn" style="display: none;">Disconnect</button>
             </div>
-            <div class="status-message" id="driveStatus">Click "Test Setup" to check Google Drive integration<br><br>⚠️ <strong>Important:</strong> This version automatically merges content from multiple devices - no data is ever lost!</div>
+            <div class="status-message" id="driveStatus">Click "Test Setup" to check Google Drive integration<br><br>⚠️ <strong>Important:</strong> Make sure you sign in with the Google account that has access to your target folder. If you have multiple Google accounts, you might need to sign out of others first.</div>
             <div class="backup-timer" id="backupTimer"></div>
         </div>
 
@@ -697,6 +490,7 @@
                 <button class="menu-button-item" onclick="newDocument()">New Document</button>
                 <button class="menu-button-item" onclick="saveDocument()">Download Text</button>
                 <button class="menu-button-item" onclick="debugLocalStorage()">Check Local Save</button>
+                <button class="menu-button-item" onclick="toggleFocusMode()">Ultra Focus Mode</button>
             </div>
         </div>
 
@@ -715,18 +509,20 @@
         </div>
     </div>
 
+    <!-- Overlay -->
     <div class="overlay" id="overlay"></div>
 
+    <!-- Focus Mode -->
     <div class="focus-mode" id="focusMode">
         <button class="focus-exit" onclick="toggleFocusMode()">Exit Ultra Focus</button>
         <div class="editor" 
              contenteditable="true" 
              id="focusEditor"
-             spellcheck="true"
              placeholder="Pure focus. Just you and your words.">
         </div>
     </div>
 
+    <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <script>
@@ -734,11 +530,8 @@
         let currentEditor = document.getElementById('editor');
         let focusEditor = document.getElementById('focusEditor');
         let isInFocusMode = false;
-        let isTypewriterMode = false;
         let saveTimeout;
         let isMenuOpen = false;
-        let spellCheckEnabled = true;
-        let markdownEnabled = true;
 
         // DOM elements
         const saveStatusElement = document.getElementById('saveStatus');
@@ -746,7 +539,6 @@
         const menuButton = document.getElementById('menuButton');
         const overlay = document.getElementById('overlay');
         const writingArea = document.getElementById('writingArea');
-        const hotkeyIndicator = document.getElementById('hotkeyIndicator');
 
         // Google Drive variables
         let isGoogleDriveLoaded = false;
@@ -757,342 +549,27 @@
         const API_KEY = 'AIzaSyCyIueSk6Luj3kbLs2EELibnJ6g4LT7c2o';
         const SCOPES = 'https://www.googleapis.com/auth/drive';
         
+        // Target folder ID from the URL
         const TARGET_FOLDER_ID = '1HDSoa7EThzo15nkwWlb2RURzBWNxSIAe';
         const BACKUP_FILE_NAME = 'focus-writer-backup.txt';
-        
-        // Conflict prevention variables
-        let lastKnownModifiedTime = null;
-        let lastBackupContent = '';
-        let lastBackupTime = 0;
         
         // Auto-backup variables
         let autoBackupInterval = null;
         let backupCountdown = null;
         let nextBackupTime = null;
-        const BACKUP_INTERVAL = 5 * 60 * 1000;
-
-        // Writing aids
-        const commonMisspellings = {
-            'teh': 'the',
-            'adn': 'and',
-            'recieve': 'receive',
-            'seperate': 'separate',
-            'occured': 'occurred',
-            'definately': 'definitely',
-            'neccessary': 'necessary',
-            'embarass': 'embarrass',
-            'accomodate': 'accommodate',
-            'consciencious': 'conscientious'
-        };
-
-        const grammarPatterns = [
-            { pattern: /\bthere\s+is\s+\w+\s+\w+s\b/gi, suggestion: 'Consider using "there are" for plural nouns' },
-            { pattern: /\bits\s+ok\b/gi, suggestion: 'Consider "it\'s" (it is) instead of "its" (possessive)' },
-            { pattern: /\byour\s+(going|coming|doing)\b/gi, suggestion: 'Consider "you\'re" instead of "your"' },
-            { pattern: /\bshould\s+of\b/gi, suggestion: 'Use "should have" instead of "should of"' }
-        ];
-
-        // Hotkey functions
-        function showHotkeyIndicator(text) {
-            hotkeyIndicator.textContent = text;
-            hotkeyIndicator.classList.add('show');
-            setTimeout(() => {
-                hotkeyIndicator.classList.remove('show');
-            }, 2000);
-        }
-
-        // Enhanced formatting functions
-        function formatText(command) {
-            const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-            activeEditor.focus();
-            
-            if (command === 'strikethrough') {
-                document.execCommand('strikeThrough', false, null);
-            } else {
-                document.execCommand(command, false, null);
-            }
-            updateToolbarState();
-            syncEditors();
-        }
-
-        function clearFormatting() {
-            const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-            activeEditor.focus();
-            document.execCommand('removeFormat', false, null);
-            updateToolbarState();
-            syncEditors();
-            showHotkeyIndicator('Formatting cleared');
-        }
-
-        function insertNote() {
-            const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-            const selection = window.getSelection();
-            
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                const span = document.createElement('span');
-                span.className = 'note-text';
-                span.contentEditable = 'true';
-                span.textContent = '[note]';
-                
-                range.deleteContents();
-                range.insertNode(span);
-                
-                const newRange = document.createRange();
-                newRange.selectNodeContents(span);
-                selection.removeAllRanges();
-                selection.addRange(newRange);
-            }
-            syncEditors();
-            showHotkeyIndicator('Note inserted');
-        }
-
-        function insertBrackets() {
-            const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-            const selection = window.getSelection();
-            
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                const selectedText = selection.toString();
-                
-                if (selectedText) {
-                    // Wrap selected text in brackets
-                    const span = document.createElement('span');
-                    span.className = 'markdown-bracket';
-                    span.textContent = `[ ${selectedText} ]`;
-                    
-                    range.deleteContents();
-                    range.insertNode(span);
-                } else {
-                    // Insert empty brackets and position cursor between them
-                    const span = document.createElement('span');
-                    span.className = 'markdown-bracket';
-                    span.textContent = '[  ]';
-                    
-                    range.deleteContents();
-                    range.insertNode(span);
-                    
-                    // Position cursor between brackets
-                    const newRange = document.createRange();
-                    newRange.setStart(span.firstChild, 2);
-                    newRange.setEnd(span.firstChild, 2);
-                    selection.removeAllRanges();
-                    selection.addRange(newRange);
-                }
-            }
-            syncEditors();
-            showHotkeyIndicator('Brackets inserted');
-        }
-
-        // Markdown processing functions
-        function processMarkdown() {
-            const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-            let content = activeEditor.innerHTML;
-            
-            // Store current cursor position
-            const selection = window.getSelection();
-            let cursorPos = 0;
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                cursorPos = range.startOffset;
-            }
-            
-            // Process markdown patterns
-            content = content.replace(/^### (.*$)/gm, '<div class="markdown-h3">$1</div>');
-            content = content.replace(/^## (.*$)/gm, '<div class="markdown-h2">$1</div>');
-            content = content.replace(/^# (.*$)/gm, '<div class="markdown-h1">$1</div>');
-            
-            // Bold (double asterisk)
-            content = content.replace(/\*\*(.*?)\*\*/g, '<span class="markdown-bold">$1</span>');
-            
-            // Italic (single asterisk, but not if part of double)
-            content = content.replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '<span class="markdown-italic">$1</span>');
-            
-            // Strikethrough
-            content = content.replace(/~~(.*?)~~/g, '<span class="markdown-strike">$1</span>');
-            
-            // Quotes (lines starting with >)
-            content = content.replace(/^> (.*$)/gm, '<div class="markdown-quote">$1</div>');
-            
-            // Unordered lists (lines starting with -)
-            content = content.replace(/^- (.*$)/gm, '<div class="markdown-list">• $1</div>');
-            
-            // Ordered lists (lines starting with number.)
-            content = content.replace(/^(\d+)\. (.*$)/gm, '<div class="markdown-list">$1. $2</div>');
-            
-            // Only update if content changed
-            if (content !== activeEditor.innerHTML) {
-                activeEditor.innerHTML = content;
-                
-                // Try to restore cursor position (simplified)
-                try {
-                    const range = document.createRange();
-                    const textNode = activeEditor.firstChild;
-                    if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-                        range.setStart(textNode, Math.min(cursorPos, textNode.textContent.length));
-                        range.collapse(true);
-                        selection.removeAllRanges();
-                        selection.addRange(range);
-                    }
-                } catch (e) {
-                    // Cursor restoration failed, just focus the editor
-                    activeEditor.focus();
-                }
-            }
-        }
-
-        // Debounced markdown processing
-        let markdownTimeout;
-        function debouncedMarkdownProcess() {
-            clearTimeout(markdownTimeout);
-            markdownTimeout = setTimeout(processMarkdown, 500);
-        }
-
-        function insertSuperscript() {
-            formatText('superscript');
-            showHotkeyIndicator('Superscript applied');
-        }
-
-        function insertSubscript() {
-            formatText('subscript');
-            showHotkeyIndicator('Subscript applied');
-        }
-
-        // Writing aids functions
-        function toggleSpellCheck() {
-            spellCheckEnabled = !spellCheckEnabled;
-            currentEditor.spellcheck = spellCheckEnabled;
-            focusEditor.spellcheck = spellCheckEnabled;
-            
-            const btn = document.getElementById('spellCheckBtn');
-            btn.classList.toggle('active', spellCheckEnabled);
-            
-            showHotkeyIndicator(`Spell check ${spellCheckEnabled ? 'enabled' : 'disabled'}`);
-        }
-
-        function runGrammarCheck() {
-            const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-            const text = activeEditor.innerText;
-            let issuesFound = 0;
-            
-            grammarPatterns.forEach(pattern => {
-                if (pattern.pattern.test(text)) {
-                    issuesFound++;
-                }
-            });
-            
-            showHotkeyIndicator(`Grammar check complete. ${issuesFound} potential issues found.`);
-        }
-
-        function showWordSuggestions() {
-            const selection = window.getSelection();
-            if (selection.rangeCount === 0) {
-                showHotkeyIndicator('Select a word to see suggestions');
-                return;
-            }
-            
-            const selectedText = selection.toString().trim().toLowerCase();
-            if (commonMisspellings[selectedText]) {
-                const suggestion = commonMisspellings[selectedText];
-                if (confirm(`Did you mean "${suggestion}"?`)) {
-                    const range = selection.getRangeAt(0);
-                    range.deleteContents();
-                    range.insertNode(document.createTextNode(suggestion));
-                    syncEditors();
-                }
-            } else {
-                showHotkeyIndicator('No suggestions found for selected word');
-            }
-        }
-
-        // Markdown functions
-        function toggleMarkdown() {
-            markdownEnabled = !markdownEnabled;
-            const btn = document.getElementById('markdownBtn');
-            btn.classList.toggle('active', markdownEnabled);
-            
-            if (markdownEnabled) {
-                processMarkdown();
-                showHotkeyIndicator('Live markdown enabled');
-            } else {
-                // Remove markdown styling (simplified)
-                const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-                const plainText = activeEditor.innerText;
-                activeEditor.innerHTML = plainText.replace(/\n/g, '<br>');
-                showHotkeyIndicator('Live markdown disabled');
-            }
-            syncEditors();
-        }
-
-        function showMarkdownHelp() {
-            const helpText = `Markdown Quick Reference:
-
-**Text Formatting:**
-**bold text** (double asterisk)
-*italic text* (single asterisk)
-~~strikethrough~~ (double tilde)
-
-**Headers:**
-# Big Header
-## Medium Header
-### Small Header
-
-**Lists:**
-- Bullet point (dash + space)
-1. Numbered item
-2. Second item
-
-**Quotes:**
-> This is a quote
-> Multiple lines work
-
-**Other:**
-Ctrl+/ for [ brackets ]`;
-
-            alert(helpText);
-        }
-
-        // Focus mode functions
-        function toggleTypewriterMode() {
-            isTypewriterMode = !isTypewriterMode;
-            writingArea.classList.toggle('typewriter-mode', isTypewriterMode);
-            
-            const btn = document.getElementById('typewriterBtn');
-            btn.classList.toggle('active', isTypewriterMode);
-            
-            if (isTypewriterMode) {
-                currentEditor.addEventListener('input', scrollToCurrentLine);
-                showHotkeyIndicator('Typewriter mode enabled');
-            } else {
-                currentEditor.removeEventListener('input', scrollToCurrentLine);
-                showHotkeyIndicator('Typewriter mode disabled');
-            }
-        }
-
-        function scrollToCurrentLine() {
-            if (!isTypewriterMode) return;
-            
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                const rect = range.getBoundingClientRect();
-                const targetY = window.innerHeight * 0.4; // 2/5 down from top (40%)
-                const scrollY = window.scrollY + rect.top - targetY;
-                
-                window.scrollTo({
-                    top: scrollY,
-                    behavior: 'smooth'
-                });
-            }
-        }
+        const BACKUP_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
         // Menu functionality
         function toggleMenu() {
+            console.log('Menu button clicked!');
             isMenuOpen = !isMenuOpen;
+            
             menuPanel.classList.toggle('open', isMenuOpen);
             menuButton.classList.toggle('active', isMenuOpen);
             overlay.classList.toggle('active', isMenuOpen);
             writingArea.classList.toggle('menu-open', isMenuOpen);
+            
+            console.log('Menu open:', isMenuOpen);
         }
 
         function closeMenu() {
@@ -1111,9 +588,12 @@ Ctrl+/ for [ brackets ]`;
             showSaveStatus('saving');
             
             try {
+                // Local save
+                window.focusWriterContent = content;
                 localStorage.setItem('focusWriterContent', content);
                 localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
                 console.log('💾 Auto-saved locally at', new Date().toLocaleTimeString());
+                console.log('📄 Content length:', content.length);
                 
                 setTimeout(() => {
                     showSaveStatus('saved');
@@ -1151,10 +631,14 @@ Ctrl+/ for [ brackets ]`;
                     saveStatusElement.classList.add('backup');
                     setTimeout(() => showSaveStatus('saved'), 2000);
                     break;
-                case 'merged':
-                    saveStatusElement.textContent = '● Auto-merged';
-                    saveStatusElement.classList.add('merged');
-                    setTimeout(() => showSaveStatus('saved'), 3000);
+                case 'loading':
+                    saveStatusElement.textContent = '● Loading...';
+                    saveStatusElement.classList.add('loading');
+                    break;
+                case 'loaded':
+                    saveStatusElement.textContent = '● Loaded';
+                    saveStatusElement.classList.add('loading');
+                    setTimeout(() => showSaveStatus('saved'), 2000);
                     break;
                 case 'error':
                     saveStatusElement.textContent = '● Error';
@@ -1165,30 +649,17 @@ Ctrl+/ for [ brackets ]`;
             }
         }
 
-        function showMergeNotification(message) {
-            const notification = document.createElement('div');
-            notification.className = 'merge-notification';
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                if (document.body.contains(notification)) {
-                    document.body.removeChild(notification);
-                }
-            }, 5000);
-        }
-
         function loadSavedContent() {
             try {
-                const savedContent = localStorage.getItem('focusWriterContent');
+                const savedContent = window.focusWriterContent || localStorage.getItem('focusWriterContent');
                 if (savedContent) {
                     currentEditor.innerHTML = savedContent;
                     focusEditor.innerHTML = savedContent;
                     updateStats();
                 }
                 
+                // Load file ID if exists
                 currentFileId = localStorage.getItem('focusWriterFileId');
-                lastKnownModifiedTime = localStorage.getItem('focusWriterLastModified');
             } catch (error) {
                 console.error('Error loading saved content:', error);
             }
@@ -1196,10 +667,10 @@ Ctrl+/ for [ brackets ]`;
 
         function clearSavedContent() {
             try {
+                window.focusWriterContent = null;
                 localStorage.removeItem('focusWriterContent');
                 localStorage.removeItem('focusWriterLastSaved');
                 localStorage.removeItem('focusWriterFileId');
-                localStorage.removeItem('focusWriterLastModified');
             } catch (error) {
                 console.error('Error clearing saved content:', error);
             }
@@ -1213,11 +684,6 @@ Ctrl+/ for [ brackets ]`;
             }
             updateStats();
             debouncedAutoSave();
-            
-            // Process markdown if enabled
-            if (markdownEnabled) {
-                debouncedMarkdownProcess();
-            }
         }
 
         function updateStats() {
@@ -1230,17 +696,15 @@ Ctrl+/ for [ brackets ]`;
             document.getElementById('charCount').textContent = chars;
         }
 
+        function formatText(command) {
+            document.execCommand(command, false, null);
+            updateToolbarState();
+        }
+
         function updateToolbarState() {
-            const commands = ['bold', 'italic', 'underline', 'strikeThrough'];
-            const btnMap = {
-                'bold': 'boldBtn',
-                'italic': 'italicBtn', 
-                'underline': 'underlineBtn',
-                'strikeThrough': 'strikethroughBtn'
-            };
-            
+            const commands = ['bold', 'italic', 'underline'];
             commands.forEach(command => {
-                const btn = document.getElementById(btnMap[command]);
+                const btn = document.getElementById(command + 'Btn');
                 if (btn) {
                     if (document.queryCommandState(command)) {
                         btn.classList.add('active');
@@ -1249,11 +713,6 @@ Ctrl+/ for [ brackets ]`;
                     }
                 }
             });
-        }
-
-        function getCurrentContent() {
-            const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-            return activeEditor.innerText || activeEditor.textContent || '';
         }
 
         function toggleFocusMode() {
@@ -1265,17 +724,17 @@ Ctrl+/ for [ brackets ]`;
                 focusMode.style.display = 'flex';
                 focusEditor.focus();
                 closeMenu();
-                showHotkeyIndicator('Ultra Focus mode enabled');
             } else {
                 syncEditors();
                 focusMode.style.display = 'none';
                 currentEditor.focus();
-                showHotkeyIndicator('Ultra Focus mode disabled');
             }
         }
 
         function saveDocument() {
-            const plainText = getCurrentContent();
+            const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+            const plainText = activeEditor.innerText || activeEditor.textContent || '';
+            
             const blob = new Blob([plainText], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1298,223 +757,647 @@ Ctrl+/ for [ brackets ]`;
                 focusEditor.innerHTML = '';
                 clearSavedContent();
                 currentFileId = null;
-                lastKnownModifiedTime = null;
                 updateStats();
                 showSaveStatus('saved');
                 currentEditor.focus();
                 closeMenu();
+                
+                // Reset backup file ID
+                localStorage.removeItem('focusWriterFileId');
             }
         }
 
         function debugLocalStorage() {
+            console.log('=== LOCAL STORAGE DEBUG ===');
+            
             try {
                 const content = localStorage.getItem('focusWriterContent');
                 const lastSaved = localStorage.getItem('focusWriterLastSaved');
                 const fileId = localStorage.getItem('focusWriterFileId');
-                const lastModified = localStorage.getItem('focusWriterLastModified');
                 
-                console.log('=== LOCAL STORAGE DEBUG ===');
                 console.log('💾 Content length:', content ? content.length : 'null');
                 console.log('🕒 Last saved:', lastSaved || 'never');
                 console.log('🆔 File ID:', fileId || 'none');
-                console.log('📅 Last modified:', lastModified || 'unknown');
+                console.log('📝 Current editor content length:', currentEditor.innerHTML.length);
                 
-                alert(`Debug Info:
-Content: ${content ? content.length + ' chars' : 'None'}
+                alert(`Local Storage Debug:
+                
+Content stored: ${content ? content.length + ' characters' : 'None'}
 Last saved: ${lastSaved || 'Never'}
 File ID: ${fileId || 'None'}
-Last modified: ${lastModified || 'Unknown'}
+Current editor: ${currentEditor.innerHTML.length} characters
 
-Check console for details.`);
+Check console (F12) for full details.`);
                 
             } catch (error) {
                 console.error('❌ localStorage error:', error);
-                alert('❌ Error: ' + error.message);
+                alert('❌ Error checking localStorage: ' + error.message);
             }
         }
 
-        // Simplified Google Drive functions (keeping basic structure)
+        function resetBackupFile() {
+            console.log('🔄 Resetting backup file to target folder...');
+            currentFileId = null;
+            localStorage.removeItem('focusWriterFileId');
+            updateDriveStatus('🔄 Reset complete - next backup will create new file in target folder');
+        }
+
+        // Auto-backup timer functions
+        function startBackupTimer() {
+            if (!isSignedIn) return;
+            
+            // Clear existing intervals
+            if (autoBackupInterval) clearInterval(autoBackupInterval);
+            if (backupCountdown) clearInterval(backupCountdown);
+            
+            nextBackupTime = Date.now() + BACKUP_INTERVAL;
+            
+            // Main backup interval (every 5 minutes)
+            autoBackupInterval = setInterval(() => {
+                performAutoBackup();
+                nextBackupTime = Date.now() + BACKUP_INTERVAL;
+            }, BACKUP_INTERVAL);
+            
+            // Countdown display (every second)
+            backupCountdown = setInterval(updateBackupTimer, 1000);
+            
+            console.log('🕐 Auto-backup started (every 5 minutes)');
+        }
+
+        function stopBackupTimer() {
+            if (autoBackupInterval) {
+                clearInterval(autoBackupInterval);
+                autoBackupInterval = null;
+            }
+            if (backupCountdown) {
+                clearInterval(backupCountdown);
+                backupCountdown = null;
+            }
+            document.getElementById('backupTimer').innerHTML = '';
+            console.log('🛑 Auto-backup stopped');
+        }
+
+        function updateBackupTimer() {
+            if (!nextBackupTime || !isSignedIn) return;
+            
+            const timeLeft = Math.max(0, nextBackupTime - Date.now());
+            const minutes = Math.floor(timeLeft / 60000);
+            const seconds = Math.floor((timeLeft % 60000) / 1000);
+            
+            document.getElementById('backupTimer').innerHTML = 
+                `Next backup in: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function performAutoBackup() {
+            if (!isSignedIn || !accessToken) {
+                console.log('⚠️ Auto-backup skipped - not connected to Drive');
+                return;
+            }
+            
+            console.log('🔄 Performing auto-backup...');
+            backupToGoogleDrive(true); // true = silent backup
+        }
+
+        // Google Drive Functions
         function updateDriveStatus(message) {
             document.getElementById('driveStatus').innerHTML = message;
         }
 
         function detailedDiagnostic() {
             updateDriveStatus('🔍 Running diagnostic...');
+            console.log('=== GOOGLE DRIVE DIAGNOSTIC ===');
+            
             let diagnosticResults = [];
             
+            // Check 1: Protocol
             if (window.location.protocol === 'file:') {
                 diagnosticResults.push('❌ File protocol - must use HTTP server');
                 updateDriveStatus(diagnosticResults.join('<br>'));
                 return;
             }
             
-            diagnosticResults.push('✅ HTTP protocol OK');
+            diagnosticResults.push('✅ HTTP protocol OK: ' + window.location.origin);
             
+            // Check 2: Google Identity Services
             if (typeof google === 'undefined') {
-                diagnosticResults.push('⏳ Loading Google Services...');
+                diagnosticResults.push('⏳ Loading Google Identity Services...');
                 updateDriveStatus(diagnosticResults.join('<br>'));
                 
                 setTimeout(() => {
                     if (typeof google === 'undefined') {
-                        diagnosticResults.push('❌ Google Services failed to load');
+                        diagnosticResults.push('❌ Google Identity Services failed to load');
+                        diagnosticResults.push('🔧 Try: disable ad blockers, enable cookies');
                     } else {
-                        diagnosticResults.push('✅ Google Services loaded');
-                        diagnosticResults.push('✅ Setup complete');
+                        diagnosticResults.push('✅ Google Identity Services loaded');
+                        diagnosticResults.push('✅ Setup complete - ready to connect');
                     }
                     updateDriveStatus(diagnosticResults.join('<br>'));
                 }, 3000);
             } else {
-                diagnosticResults.push('✅ Google Services loaded');
-                diagnosticResults.push('✅ Setup complete');
+                diagnosticResults.push('✅ Google Identity Services loaded');
+                diagnosticResults.push('📁 Target folder: ' + TARGET_FOLDER_ID);
+                diagnosticResults.push('🔧 Scope: Full Google Drive access');
+                diagnosticResults.push('✅ Setup complete - ready to connect');
                 updateDriveStatus(diagnosticResults.join('<br>'));
             }
-        }
-
-        function connectGoogleDrive() {
-            updateDriveStatus('Google Drive connection feature available but simplified for this demo. Click "Test Setup" to verify configuration.');
+            
+            // Check 3: GAPI availability
+            loadGAPI().then(() => {
+                diagnosticResults.push('✅ Google API client loaded');
+                updateDriveStatus(diagnosticResults.join('<br>'));
+            }).catch(error => {
+                diagnosticResults.push('❌ Google API error: ' + error.message);
+                updateDriveStatus(diagnosticResults.join('<br>'));
+            });
         }
 
         function verifyFolderAccess() {
-            updateDriveStatus('Folder verification would check Google Drive access permissions.');
+            if (!isSignedIn || !accessToken) {
+                updateDriveStatus('❌ Not connected to Google Drive');
+                return;
+            }
+
+            updateDriveStatus('🔍 Verifying folder access...');
+            
+            // Try to get folder information
+            fetch(`https://www.googleapis.com/drive/v3/files/${TARGET_FOLDER_ID}?fields=id,name,parents,capabilities`, {
+                method: 'GET',
+                headers: new Headers({
+                    'Authorization': `Bearer ${accessToken}`
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+                
+                console.log('📁 Folder info:', data);
+                let statusMessage = `✅ Folder access verified:<br>📁 Name: ${data.name}<br>🆔 ID: ${data.id}`;
+                
+                if (data.capabilities) {
+                    statusMessage += `<br>✏️ Can edit: ${data.capabilities.canEdit || 'unknown'}`;
+                    statusMessage += `<br>📄 Can add children: ${data.capabilities.canAddChildren || 'unknown'}`;
+                }
+                
+                updateDriveStatus(statusMessage);
+            })
+            .catch(error => {
+                console.error('❌ Folder access error:', error);
+                updateDriveStatus(`❌ Cannot access folder: ${error.message}<br>🔧 Make sure you have write access to this folder<br>🔧 Try sharing the folder with the Google account you're using`);
+            });
         }
 
         function loadFromGoogleDrive() {
-            updateDriveStatus('Would load document from Google Drive backup.');
+            if (!isSignedIn || !accessToken) {
+                updateDriveStatus('❌ Not connected to Google Drive');
+                return;
+            }
+
+            updateDriveStatus('📥 Loading from Google Drive...');
+            showSaveStatus('loading');
+            console.log('📥 Starting Google Drive load...');
+
+            // Search for the backup file in the target folder
+            const query = `name='${BACKUP_FILE_NAME}' and parents in '${TARGET_FOLDER_ID}' and trashed=false`;
+            
+            fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`, {
+                method: 'GET',
+                headers: new Headers({
+                    'Authorization': `Bearer ${accessToken}`
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+
+                console.log('🔍 Search results:', data);
+
+                if (!data.files || data.files.length === 0) {
+                    updateDriveStatus('📭 No backup file found in Google Drive<br>💡 Start writing to create your first backup');
+                    showSaveStatus('saved');
+                    return;
+                }
+
+                // Get the first (most recent) file
+                const file = data.files[0];
+                currentFileId = file.id;
+                localStorage.setItem('focusWriterFileId', currentFileId);
+
+                console.log('📄 Found backup file:', file);
+
+                // Download the file content
+                return fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+                    method: 'GET',
+                    headers: new Headers({
+                        'Authorization': `Bearer ${accessToken}`
+                    })
+                });
+            })
+            .then(response => {
+                if (!response) return; // No file found case
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return response.text();
+            })
+            .then(content => {
+                if (!content && content !== '') return; // No file found case
+                
+                console.log('📥 Loaded content length:', content.length);
+
+                // Load content into editors
+                currentEditor.innerText = content;
+                focusEditor.innerText = content;
+                
+                // Save locally
+                localStorage.setItem('focusWriterContent', currentEditor.innerHTML);
+                localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+                
+                updateStats();
+                showSaveStatus('loaded');
+                
+                const fileInfo = `✅ Document loaded from Google Drive<br>📄 File: ${BACKUP_FILE_NAME}<br>📊 ${content.length} characters loaded<br>⏰ Auto-backup every 5 minutes`;
+                updateDriveStatus(fileInfo);
+                
+                console.log('✅ Document loaded successfully from Google Drive');
+            })
+            .catch(error => {
+                console.error('❌ Load error:', error);
+                updateDriveStatus(`❌ Failed to load from Google Drive: ${error.message}<br>🔧 Check console for details`);
+                showSaveStatus('error');
+            });
         }
 
-        function resetBackupFile() {
-            updateDriveStatus('Would reset Google Drive backup file.');
+        function loadGAPI() {
+            return new Promise((resolve, reject) => {
+                if (typeof gapi !== 'undefined' && gapi.client) {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://apis.google.com/js/api.js';
+                script.onload = () => {
+                    gapi.load('client', {
+                        callback: () => {
+                            gapi.client.init({
+                                apiKey: API_KEY,
+                                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+                            }).then(resolve).catch(reject);
+                        },
+                        onerror: reject
+                    });
+                };
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
         }
 
-        function manualBackup() {
-            updateDriveStatus('Would manually backup to Google Drive.');
+        function connectGoogleDrive() {
+            console.log('🔗 Connect Drive button clicked!');
+            updateDriveStatus('🔄 Connecting...');
+            
+            if (window.location.protocol === 'file:') {
+                updateDriveStatus('❌ Must run from HTTP server');
+                return;
+            }
+            
+            if (typeof google === 'undefined') {
+                updateDriveStatus('❌ Google Identity Services not loaded<br>🔧 Try refreshing page or disabling ad blockers');
+                return;
+            }
+            
+            try {
+                const client = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    hint: '', // This forces account picker
+                    callback: (response) => {
+                        console.log('OAuth response:', response);
+                        
+                        if (response.error) {
+                            console.error('OAuth error:', response.error);
+                            updateDriveStatus('❌ Authentication failed: ' + response.error);
+                            return;
+                        }
+                        
+                        if (response.access_token) {
+                            accessToken = response.access_token;
+                            isSignedIn = true;
+                            updateDriveUI();
+                            updateDriveStatus('✅ Connected to Google Drive<br>📥 Loading your document...');
+                            console.log('✅ Successfully connected to Google Drive');
+                            
+                            loadGAPI().then(() => {
+                                gapi.client.setToken({access_token: accessToken});
+                                isGoogleDriveLoaded = true;
+                                
+                                // Verify folder access first
+                                setTimeout(() => {
+                                    verifyFolderAccess();
+                                    
+                                    // Auto-load the document from Google Drive
+                                    setTimeout(() => {
+                                        loadFromGoogleDrive();
+                                        
+                                        // Start auto-backup timer after loading
+                                        setTimeout(() => {
+                                            startBackupTimer();
+                                        }, 3000);
+                                    }, 2000);
+                                }, 1000);
+                            });
+                        }
+                    },
+                });
+                
+                client.requestAccessToken();
+                
+            } catch (error) {
+                console.error('❌ Connection error:', error);
+                updateDriveStatus('❌ Connection failed: ' + error.message);
+            }
         }
 
         function disconnectGoogleDrive() {
-            updateDriveStatus('Would disconnect from Google Drive.');
+            if (accessToken) {
+                google.accounts.oauth2.revoke(accessToken, () => {
+                    console.log('Token revoked');
+                });
+            }
+            
+            // Stop auto-backup
+            stopBackupTimer();
+            
+            accessToken = null;
+            isSignedIn = false;
+            isGoogleDriveLoaded = false;
+            currentFileId = null;
+            updateDriveUI();
+            updateDriveStatus('Disconnected from Google Drive');
+        }
+
+        function manualBackup() {
+            backupToGoogleDrive(false); // false = show feedback
+        }
+
+        function verifyCurrentFile() {
+            if (!currentFileId || !isSignedIn || !accessToken) {
+                return Promise.resolve(false);
+            }
+
+            return fetch(`https://www.googleapis.com/drive/v3/files/${currentFileId}?fields=id,name,parents`, {
+                method: 'GET',
+                headers: new Headers({
+                    'Authorization': `Bearer ${accessToken}`
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.log('❌ Current file not found:', data.error.message);
+                    return false;
+                }
+                
+                console.log('📄 Current file info:', data);
+                
+                // Check if file is in target folder
+                const isInTargetFolder = data.parents && data.parents.includes(TARGET_FOLDER_ID);
+                console.log('📁 Is in target folder:', isInTargetFolder);
+                
+                if (!isInTargetFolder) {
+                    console.log('⚠️ Current file is NOT in target folder. Parents:', data.parents);
+                    console.log('🎯 Target folder:', TARGET_FOLDER_ID);
+                    return false;
+                }
+                
+                return true;
+            })
+            .catch(error => {
+                console.error('❌ Error verifying current file:', error);
+                return false;
+            });
+        }
+
+        function backupToGoogleDrive(silent = false) {
+            if (!isSignedIn || !accessToken) {
+                if (!silent) updateDriveStatus('❌ Not connected to Google Drive');
+                return;
+            }
+            
+            if (!silent) {
+                updateDriveStatus('💾 Backing up to Google Drive...');
+                showSaveStatus('backing-up');
+            }
+            
+            const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+            const content = activeEditor.innerText || activeEditor.textContent || '';
+            
+            // Always save locally first
+            localStorage.setItem('focusWriterContent', activeEditor.innerHTML);
+            localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+            console.log('💾 Saved locally to localStorage');
+            
+            // Verify current file is in target folder before updating
+            verifyCurrentFile().then(isValidFile => {
+                if (currentFileId && isValidFile) {
+                    // Update existing file
+                    updateFileInDrive(content, silent);
+                } else {
+                    // Create new file (either no file ID or file not in target folder)
+                    if (currentFileId && !isValidFile) {
+                        console.log('🔄 Current file not in target folder, creating new file...');
+                        currentFileId = null;
+                        localStorage.removeItem('focusWriterFileId');
+                    }
+                    createFileInDrive(content, silent);
+                }
+            });
+        }
+
+        function createFileInDrive(content, silent) {
+            const fileMetadata = {
+                name: BACKUP_FILE_NAME,
+                parents: [TARGET_FOLDER_ID]
+            };
+            
+            console.log('📤 Creating file in Drive folder:', TARGET_FOLDER_ID);
+            
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(fileMetadata)], {type: 'application/json'}));
+            form.append('file', new Blob([content], {type: 'text/plain'}));
+            
+            fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,parents,webViewLink', {
+                method: 'POST',
+                headers: new Headers({
+                    'Authorization': `Bearer ${accessToken}`
+                }),
+                body: form
+            })
+            .then(response => {
+                console.log('📡 Drive API response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('📡 Drive API response data:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+                
+                currentFileId = data.id;
+                localStorage.setItem('focusWriterFileId', currentFileId);
+                
+                if (!silent) {
+                    updateDriveStatus(`✅ Backup created: ${BACKUP_FILE_NAME}<br>📁 Folder: ${TARGET_FOLDER_ID}<br>🔗 File ID: ${data.id}<br>📍 Parents: ${JSON.stringify(data.parents)}`);
+                    showSaveStatus('backed-up');
+                }
+                console.log('✅ File created in Google Drive:', data);
+            })
+            .catch(error => {
+                console.error('❌ Backup error details:', error);
+                if (!silent) {
+                    updateDriveStatus(`❌ Backup failed: ${error.message}<br>🔧 Check console for details<br>📁 Target folder: ${TARGET_FOLDER_ID}`);
+                    showSaveStatus('error');
+                }
+            });
+        }
+
+        function updateFileInDrive(content, silent) {
+            console.log('📝 Updating existing file:', currentFileId);
+            
+            fetch(`https://www.googleapis.com/upload/drive/v3/files/${currentFileId}?uploadType=media&fields=id,name,modifiedTime`, {
+                method: 'PATCH',
+                headers: new Headers({
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'text/plain'
+                }),
+                body: content
+            })
+            .then(response => {
+                console.log('📡 Update response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('📡 Update response data:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+                
+                if (!silent) {
+                    updateDriveStatus(`✅ Backup updated: ${BACKUP_FILE_NAME}<br>📁 Last updated: ${new Date().toLocaleTimeString()}<br>🆔 File ID: ${data.id}`);
+                    showSaveStatus('backed-up');
+                }
+                console.log('✅ File updated in Google Drive:', data);
+            })
+            .catch(error => {
+                console.error('❌ Update error details:', error);
+                // If file doesn't exist, create a new one
+                if (error.message.includes('404') || error.message.includes('File not found')) {
+                    console.log('🔄 File not found, creating new one...');
+                    currentFileId = null;
+                    localStorage.removeItem('focusWriterFileId');
+                    createFileInDrive(content, silent);
+                } else {
+                    if (!silent) {
+                        updateDriveStatus(`❌ Backup update failed: ${error.message}<br>🔧 Check console for details`);
+                        showSaveStatus('error');
+                    }
+                }
+            });
         }
 
         function updateDriveUI() {
-            // Simplified UI update
+            const connectBtn = document.getElementById('driveConnectBtn');
+            const disconnectBtn = document.getElementById('driveDisconnectBtn');
+            const backupBtn = document.getElementById('driveBackupBtn');
+            const verifyBtn = document.getElementById('driveVerifyBtn');
+            const resetBtn = document.getElementById('driveResetBtn');
+            const loadBtn = document.getElementById('driveLoadBtn');
+            
+            if (isSignedIn) {
+                connectBtn.style.display = 'none';
+                disconnectBtn.style.display = 'block';
+                backupBtn.style.display = 'block';
+                verifyBtn.style.display = 'block';
+                resetBtn.style.display = 'block';
+                loadBtn.style.display = 'block';
+            } else {
+                connectBtn.style.display = 'block';
+                disconnectBtn.style.display = 'none';
+                backupBtn.style.display = 'none';
+                verifyBtn.style.display = 'none';
+                resetBtn.style.display = 'none';
+                loadBtn.style.display = 'none';
+            }
         }
 
         // Event listeners
         menuButton.addEventListener('click', toggleMenu);
         overlay.addEventListener('click', closeMenu);
+
         currentEditor.addEventListener('input', syncEditors);
         focusEditor.addEventListener('input', syncEditors);
+        
         currentEditor.addEventListener('keyup', updateToolbarState);
         focusEditor.addEventListener('keyup', updateToolbarState);
+        
         currentEditor.addEventListener('mouseup', updateToolbarState);
         focusEditor.addEventListener('mouseup', updateToolbarState);
 
-        // Enhanced keyboard shortcuts
+        // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
-            // Function key shortcuts
-            if (e.key === 'F7' && !e.shiftKey) {
-                e.preventDefault();
-                toggleSpellCheck();
-                return;
-            }
-
-            if (e.key === 'F7' && e.shiftKey) {
-                e.preventDefault();
-                runGrammarCheck();
-                return;
-            }
-
-            if (e.key === 'F10') {
-                e.preventDefault();
-                toggleTypewriterMode();
-                return;
-            }
-
-            if (e.key === 'F11') {
-                e.preventDefault();
-                toggleFocusMode();
-                return;
-            }
-
-            // Escape key
             if (e.key === 'Escape') {
                 if (isInFocusMode) {
                     toggleFocusMode();
                 } else if (isMenuOpen) {
                     closeMenu();
                 }
-                return;
             }
             
-            // Ctrl key combinations
-            if (e.ctrlKey) {
-                switch (e.key) {
-                    case 'm':
-                        e.preventDefault();
-                        toggleMenu();
-                        break;
-                    case 's':
-                        e.preventDefault();
-                        saveDocument();
-                        break;
-                    case 'b':
-                        if (!e.shiftKey) {
-                            e.preventDefault();
-                            formatText('bold');
-                        }
-                        break;
-                    case 'i':
-                        e.preventDefault();
-                        formatText('italic');
-                        break;
-                    case 'u':
-                        e.preventDefault();
-                        formatText('underline');
-                        break;
-                    case '/':
-                        e.preventDefault();
-                        insertBrackets();
-                        break;
+            if (e.ctrlKey && e.key === 'm') {
+                e.preventDefault();
+                toggleMenu();
+            }
+            
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                if (isSignedIn) {
+                    manualBackup();
+                } else {
+                    saveDocument();
                 }
             }
-
-            // Ctrl+Shift combinations
-            if (e.ctrlKey && e.shiftKey) {
-                switch (e.key) {
-                    case 'X':
-                        e.preventDefault();
-                        formatText('strikethrough');
-                        showHotkeyIndicator('Strikethrough applied');
-                        break;
-                    case 'N':
-                        e.preventDefault();
-                        insertNote();
-                        break;
-                    case 'P':
-                        e.preventDefault();
-                        insertSuperscript();
-                        break;
-                    case 'B':
-                        e.preventDefault();
-                        insertSubscript();
-                        break;
-                    case 'C':
-                        e.preventDefault();
-                        clearFormatting();
-                        break;
-                    case 'M':
-                        e.preventDefault();
-                        toggleMarkdown();
-                        break;
-                }
+            
+            if (e.ctrlKey && e.key === 'b') {
+                e.preventDefault();
+                formatText('bold');
+            }
+            
+            if (e.ctrlKey && e.key === 'i') {
+                e.preventDefault();
+                formatText('italic');
+            }
+            
+            if (e.ctrlKey && e.key === 'u') {
+                e.preventDefault();
+                formatText('underline');
             }
         });
 
         // Initialize
-        console.log('Initializing Enhanced Focus Writer...');
+        console.log('Initializing Focus Writer with Auto-Backup...');
         
         loadSavedContent();
         
-        if (!localStorage.getItem('focusWriterContent')) {
+        // Start cursor on third line if no saved content
+        if (!window.focusWriterContent && !localStorage.getItem('focusWriterContent')) {
             currentEditor.innerHTML = '<br><br>';
             focusEditor.innerHTML = '<br><br>';
             
@@ -1530,18 +1413,8 @@ Check console for details.`);
         showSaveStatus('saved');
         currentEditor.focus();
         
-        // Display available hotkeys on startup
-        setTimeout(() => {
-            showHotkeyIndicator('Press F7 for spell check, F10 for typewriter mode, F11 for ultra focus, Ctrl+/ for brackets');
-        }, 2000);
-        
-        console.log('✅ Enhanced Focus Writer initialized!');
-        console.log('📝 New features: Enhanced hotkeys, writing aids, typewriter mode, live markdown');
-        console.log('⌨️ Hotkeys: F7=Spell, Shift+F7=Grammar, F10=Typewriter, F11=Ultra Focus');
-        console.log('🎨 Format: Ctrl+B=Bold, Ctrl+I=Italic, Ctrl+U=Underline, Ctrl+Shift+X=Strike');
-        console.log('📌 Notes: Ctrl+Shift+N=Note, Ctrl+Shift+P=Super, Ctrl+Shift+B=Sub, Ctrl+Shift+C=Clear');
-        console.log('📝 Markdown: Ctrl+/=Brackets, Ctrl+Shift+M=Toggle Markdown, **bold**, *italic*, ~~strike~~');
-        console.log('📋 Headers: # ## ###, Lists: - 1., Quotes: >');
+        console.log('Focus Writer initialized successfully!');
+        console.log('Target Google Drive folder:', TARGET_FOLDER_ID);
     </script>
 </body>
 </html>
