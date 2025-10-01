@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BigCatMellow Writer</title>
+    <title>Focus Writer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -709,7 +709,7 @@
 
     <div class="menu-panel" id="menuPanel">
         <div class="menu-header">
-            <div class="menu-title">BigCatMellow Writer</div>
+            <div class="menu-title">Focus Writer</div>
             <div class="menu-subtitle">Distraction-free writing with auto-backup</div>
         </div>
 
@@ -1185,6 +1185,65 @@ Check console (F12) for full details.`);
             });
         }
 
+        function storeRefreshToken(authCode) {
+            if (!CLIENT_SECRET || !WORKER_URL || WORKER_URL.includes('your-worker')) {
+                console.log('Cannot store refresh token: missing CLIENT_SECRET or valid WORKER_URL');
+                return;
+            }
+            
+            console.log('Exchanging authorization code for refresh token...');
+            
+            // Exchange auth code for tokens including refresh token
+            fetch('https://oauth2.googleapis.com/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    code: authCode,
+                    client_id: CLIENT_ID,
+                    client_secret: CLIENT_SECRET,
+                    redirect_uri: window.location.origin,
+                    grant_type: 'authorization_code'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Token exchange error:', data.error);
+                    return;
+                }
+                
+                if (data.refresh_token) {
+                    console.log('Got refresh token, storing in Worker...');
+                    
+                    // Store refresh token in Worker
+                    return fetch(WORKER_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'store',
+                            refresh_token: data.refresh_token,
+                            clientId: CLIENT_ID,
+                            clientSecret: CLIENT_SECRET
+                        })
+                    });
+                } else {
+                    console.log('No refresh token received - user may need to reauthorize');
+                }
+            })
+            .then(response => response ? response.json() : null)
+            .then(data => {
+                if (data && data.sessionId) {
+                    sessionId = data.sessionId;
+                    localStorage.setItem('focusWriterSessionId', sessionId);
+                    console.log('Refresh token stored successfully. Session ID:', sessionId);
+                    updateDriveStatus('Connected with persistent session. You\'ll stay logged in for months!');
+                }
+            })
+            .catch(error => {
+                console.error('Error storing refresh token:', error);
+            });
+        }
+
         // ===== GOOGLE DRIVE STATUS =====
         function updateDriveStatus(message) {
             document.getElementById('driveStatus').innerHTML = message;
@@ -1252,7 +1311,7 @@ Check console (F12) for full details.`);
                     <li>
                         <strong>Create a Project:</strong><br>
                         Click "Select a project" at the top → "New Project"<br>
-                        Name it "BCMW" → Click "Create"
+                        Name it "Focus Writer" → Click "Create"
                     </li>
                     
                     <li>
@@ -1411,14 +1470,14 @@ Check console (F12) for full details.`);
             
             const loadingHTML = `
                 <div class="setup-info-box">
-                    <p style="margin: 0;">Creating "BCMW Backups" folder in your Google Drive...</p>
+                    <p style="margin: 0;">Creating "Focus Writer Backups" folder in your Google Drive...</p>
                 </div>
             `;
             
             openSetupModal('Creating Folder...', loadingHTML);
             
             const folderMetadata = {
-                name: 'BCMW Backups',
+                name: 'Focus Writer Backups',
                 mimeType: 'application/vnd.google-apps.folder'
             };
             
@@ -1571,6 +1630,23 @@ Check console (F12) for full details.`);
             
             updateDriveStatus('Connecting...');
             
+            // If we have CLIENT_SECRET, use OAuth flow that provides refresh tokens
+            if (CLIENT_SECRET && WORKER_URL && !WORKER_URL.includes('your-worker')) {
+                const redirectUri = window.location.origin + window.location.pathname;
+                const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                    `client_id=${CLIENT_ID}` +
+                    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                    `&response_type=code` +
+                    `&scope=${encodeURIComponent(SCOPES)}` +
+                    `&access_type=offline` +
+                    `&prompt=consent`;
+                
+                console.log('Using OAuth flow with refresh tokens');
+                window.location.href = authUrl;
+                return;
+            }
+            
+            // Otherwise use token-only flow (1 hour sessions)
             try {
                 const client = google.accounts.oauth2.initTokenClient({
                     client_id: CLIENT_ID,
@@ -1966,7 +2042,87 @@ Check console (F12) for full details.`);
         });
 
         // ===== INITIALIZATION =====
-        console.log('Initializing BigCatMellow Writer...');
+        console.log('Initializing Focus Writer...');
+        
+        // Check if we're returning from OAuth redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        const authCode = urlParams.get('code');
+        
+        if (authCode && CLIENT_SECRET && WORKER_URL && !WORKER_URL.includes('your-worker')) {
+            console.log('Processing OAuth callback...');
+            updateDriveStatus('Completing authentication...');
+            
+            // Exchange code for tokens
+            fetch('https://oauth2.googleapis.com/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    code: authCode,
+                    client_id: CLIENT_ID,
+                    client_secret: CLIENT_SECRET,
+                    redirect_uri: window.location.origin + window.location.pathname,
+                    grant_type: 'authorization_code'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error_description || data.error);
+                }
+                
+                accessToken = data.access_token;
+                tokenExpiry = Date.now() + (data.expires_in * 1000);
+                isSignedIn = true;
+                
+                localStorage.setItem('focusWriterAccessToken', accessToken);
+                localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
+                
+                if (data.refresh_token) {
+                    console.log('Got refresh token, storing in Worker...');
+                    return fetch(WORKER_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'store',
+                            refresh_token: data.refresh_token,
+                            clientId: CLIENT_ID,
+                            clientSecret: CLIENT_SECRET
+                        })
+                    }).then(r => r.json());
+                }
+                return null;
+            })
+            .then(workerData => {
+                if (workerData && workerData.sessionId) {
+                    sessionId = workerData.sessionId;
+                    localStorage.setItem('focusWriterSessionId', sessionId);
+                    console.log('Persistent session established!');
+                }
+                
+                // Clean up URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // Initialize Drive
+                updateDriveUI();
+                loadGAPI().then(() => {
+                    gapi.client.setToken({access_token: accessToken});
+                    isGoogleDriveLoaded = true;
+                    
+                    if (!TARGET_FOLDER_ID) {
+                        showSetupWizardStep2();
+                    } else {
+                        updateDriveStatus('Connected with persistent session!');
+                        loadFromGoogleDrive();
+                        setTimeout(() => startBackupTimer(), 2000);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('OAuth error:', error);
+                updateDriveStatus('Authentication failed: ' + error.message);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            });
+        }
         
         loadSavedContent();
         
@@ -2056,7 +2212,7 @@ Check console (F12) for full details.`);
         updateDriveUI();
         currentEditor.focus();
         
-        console.log('BCMW initialized!');
+        console.log('Focus Writer initialized!');
         if (CLIENT_ID) console.log('Google Drive configured');
         if (CLIENT_SECRET) console.log('Client Secret configured - persistent sessions enabled');
         if (TARGET_FOLDER_ID) console.log('Backup folder:', TARGET_FOLDER_ID);
