@@ -1,3 +1,3 @@
 @echo off
-python C:\path\to\easy_push.py quick
+python C:\Users\james\focus-writer\easy_push.py quick
 pause
