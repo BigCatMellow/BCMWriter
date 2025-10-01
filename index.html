@@ -1130,7 +1130,59 @@ Check console (F12) for full details.`);
         }
 
         function refreshAccessToken() {
-            return Promise.resolve(false);
+            if (!sessionId || !CLIENT_SECRET || !WORKER_URL || WORKER_URL.includes('your-worker')) {
+                console.log('Cannot refresh: missing sessionId, CLIENT_SECRET, or valid WORKER_URL');
+                return Promise.resolve(false);
+            }
+            
+            console.log('Refreshing access token via Cloudflare Worker...');
+            
+            return fetch(WORKER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'refresh',
+                    sessionId: sessionId,
+                    clientId: CLIENT_ID,
+                    clientSecret: CLIENT_SECRET
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Worker returned ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    console.error('Worker error:', data.error);
+                    return false;
+                }
+                
+                if (data.access_token) {
+                    accessToken = data.access_token;
+                    tokenExpiry = Date.now() + (3600 * 1000);
+                    
+                    localStorage.setItem('focusWriterAccessToken', accessToken);
+                    localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
+                    
+                    if (isGoogleDriveLoaded && typeof gapi !== 'undefined') {
+                        gapi.client.setToken({access_token: accessToken});
+                    }
+                    
+                    console.log('Access token refreshed successfully');
+                    updateDriveStatus('Session refreshed. Connected to Google Drive.');
+                    return true;
+                }
+                
+                return false;
+            })
+            .catch(error => {
+                console.error('Token refresh failed:', error);
+                return false;
+            });
         }
 
         // ===== GOOGLE DRIVE STATUS =====
