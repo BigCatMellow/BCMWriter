@@ -1,4 +1,151 @@
-<!DOCTYPE html>
+// Initialize
+        console.log('Initializing Focus Writer...');
+        
+        loadSavedContent();
+        
+        // Try to restore access token and session
+        const storedToken = localStorage.getItem('focusWriterAccessToken');
+        const storedExpiry = localStorage.getItem('focusWriterTokenExpiry');
+        const storedSession = localStorage.getItem('focusWriterSessionId');
+        
+        if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+            accessToken = storedToken;
+            tokenExpiry = parseInt(storedExpiry);
+            sessionId = storedSession;
+            isSignedIn = true;
+            
+            console.log('Restored access token from storage');
+            
+            // Initialize GAPI with stored token
+            if (CLIENT_ID && API_KEY) {
+                loadGAPI().then(() => {
+                    gapi.client.setToken({access_token: accessToken});
+                    isGoogleDriveLoaded = true;
+                    updateDriveUI();
+                    
+                    if (TARGET_FOLDER_ID) {
+                        const timeLeft = Math.round((tokenExpiry - Date.now()) / 60000);
+                        if (sessionId && CLIENT_SECRET) {
+                            updateDriveStatus(`Connected to Google Drive. Persistent session active.`);
+                        } else {
+                            updateDriveStatus(`Connected to Google Drive. Token expires in ${timeLeft} minutes.`);
+                        }
+                        startBackupTimer();
+                    } else {
+                        updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
+                    }
+                }).catch(error => {
+                    console.error('Error initializing GAPI:', error);
+                });
+            }
+        } else {
+            // Token expired or doesn't exist
+            if (storedToken) {
+                console.log('Access token expired');
+                localStorage.removeItem('focusWriterAccessToken');
+                localStorage.removeItem('focusWriterTokenExpiry');
+                
+                // Try to refresh if we have a session
+                if (storedSession && CLIENT_SECRET && WORKER_URL && !WORKER_URL.includes('your-worker')) {
+                    console.log('Attempting to refresh token with stored session...');
+                    sessionId = storedSession;
+                    refreshAccessToken().then(refreshed => {
+                        if (refreshed) {
+                            console.log('Token refreshed successfully on startup');
+                            isSignedIn = true;
+                            
+                            if (CLIENT_ID && API_KEY) {
+                                loadGAPI().then(() => {
+                                    gapi.client.setToken({access_token: accessToken});
+                                    isGoogleDriveLoaded = true;
+                                    updateDriveUI();
+                                    
+                                    if (TARGET_FOLDER_ID) {
+                                        updateDriveStatus('Connected to Google Drive. Session restored.');
+                                        startBackupTimer();
+                                    }
+                                });
+                            }
+                        } else {
+                            console.log('Token refresh failed, need to reconnect');
+                            localStorage.removeItem('focusWriterSessionId');
+                            sessionId = null;
+                        }
+                    });
+                }
+            }
+        }
+        
+        if (!localStorage.getItem('focusWriterContent')) {
+            currentEditor.innerHTML = '<br><br>';
+            focusEditor.innerHTML = '<br><br>';
+            
+            const range = document.createRange();
+            const selection = window.getSelection();
+            range.setStart(currentEditor, 2);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        
+        updateStats();
+        showSaveStatus('saved');
+        updateDriveUI();
+        currentEditor.focus();
+        
+        console.log('Focus Writer initialized!');
+        if (CLIENT_ID) console.log('Google Drive configured');
+        if (CLIENT_SECRET) console.log('Client Secret configured - persistent sessions enabled');
+        if (TARGET_FOLDER_ID) console.log('Backup folder:', TARGET_FOLDER_ID);
+        if (WORKER_URL.includes('your-worker')) console.log('⚠️  Worker URL not configured - using 1-hour sessions');
+        if (isSignedIn && tokenExpiry) console.log('Access token valid for', Math.round((tokenExpiry - Date.now()) / 60000), 'more minutes');
+    </script>        function createBackupFolder() {
+            if (!isSignedIn || !accessToken) {
+                closeSetupModal();
+                updateDriveStatus('Connect to Google Drive first');
+                return;
+            }
+            
+            const loadingHTML = `
+                <div class="setup-info-box">
+                    <p style="margin: 0;">Creating "Focus Writer Backups" folder in your Google Drive...</p>
+                </div>
+            `;
+            
+            openSetupModal('Creating Folder...', loadingHTML);
+            
+            const folderMetadata = {
+                name: 'Focus Writer Backups',
+                mimeType: 'application/vnd.google-apps.folder'
+            };
+            
+            fetch('https://www.googleapis.com/drive/v3/files?fields=id,name,webViewLink', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(folderMetadata)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+                
+                TARGET_FOLDER_ID = data.id;
+                localStorage.setItem('focusWriterFolderId', TARGET_FOLDER_ID);
+                updateDriveUI();
+                showSetupComplete();
+            })
+            .catch(error => {
+                const errorHTML = `
+                    <p style="color: #cc6666;">Failed to create folder: ${error.message}</p>
+                    <button onclick="showSetupWizardStep2()" class="primary">Try Again</button>
+                `;
+                openSetupModal('Error', errorHTML);
+            });
+        }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -67,7 +214,6 @@
             scrollbar-color: #444 #1a1a1a;
         }
 
-        /* Webkit browsers (Chrome, Safari, Edge) */
         .editor::-webkit-scrollbar {
             width: 8px;
         }
@@ -100,7 +246,6 @@
             font-style: normal;
         }
 
-        /* Menu Button */
         .menu-button {
             position: fixed;
             top: 20px;
@@ -159,7 +304,6 @@
             top: 6px;
         }
 
-        /* Save Status */
         .save-status {
             position: fixed;
             top: 20px;
@@ -196,7 +340,6 @@
             color: #cc66cc;
         }
 
-        /* Menu Panel */
         .menu-panel {
             position: fixed;
             top: 0;
@@ -312,7 +455,6 @@
             margin-top: 4px;
         }
 
-        /* Focus Mode */
         .focus-mode {
             position: fixed;
             top: 0;
@@ -362,7 +504,6 @@
             opacity: 1;
         }
 
-        /* Overlay */
         .overlay {
             position: fixed;
             top: 0;
@@ -381,13 +522,277 @@
             visibility: visible;
         }
 
+        .setup-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            width: min(600px, 90vw);
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1001;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        .setup-modal.active {
+            display: block;
+        }
+
+        .setup-modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setup-modal-header h2 {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .setup-modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .setup-modal-close:hover {
+            background: #3a3a3a;
+            color: #fff;
+        }
+
+        .setup-modal-content {
+            padding: 30px;
+        }
+
+        .setup-modal-content h4 {
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .setup-modal-content p {
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .setup-modal-content ol {
+            margin-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        .setup-modal-content li {
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+
+        .setup-modal-content strong {
+            color: #fff;
+        }
+
+        .setup-modal-content code {
+            background: #1a1a1a;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #66aacc;
+        }
+
+        .setup-modal-content label {
+            display: block;
+            margin-bottom: 8px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .setup-modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+            transition: border-color 0.2s ease;
+        }
+
+        .setup-modal-content input:focus {
+            outline: none;
+            border-color: #66aacc;
+        }
+
+        .setup-modal-content button {
+            width: 100%;
+            padding: 12px;
+            background: #4a4a4a;
+            border: none;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .setup-modal-content button:hover {
+            background: #5a5a5a;
+        }
+
+        .setup-modal-content button.primary {
+            background: #4a7c4a;
+            border-color: #5a8c5a;
+        }
+
+        .setup-modal-content button.primary:hover {
+            background: #5a8c5a;
+        }
+
+        .setup-modal-content button.secondary {
+            background: #3a3a3a;
+            border: 1px solid #4a4a4a;
+        }
+
+        .setup-modal-content button.secondary:hover {
+            background: #4a4a4a;
+        }
+
+        .setup-info-box {
+            background: #3a3a3a;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 3px solid #66aacc;
+            margin-bottom: 20px;
+        }
+
+        .setup-success-box {
+            background: #2d4a2d;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 3px solid #66cc66;
+            margin-bottom: 20px;
+        }
+
+        .setup-button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .setup-button-group button {
+            flex: 1;
+            margin-top: 0;
+        }
+
+        @media (max-width: 768px) {
+            .setup-modal {
+                width: 95vw;
+                max-height: 90vh;
+            }
+
+            .setup-modal-content {
+                padding: 20px;
+            }
+
+            .setup-button-group {
+                flex-direction: column;
+            }
+
+            .setup-button-group button {
+                width: 100%;
+            }
+        }
+
         .status-message {
             margin-top: 10px;
             font-size: 12px;
             color: #888888;
-            max-height: 100px;
+            max-height: 150px;
             overflow-y: auto;
             line-height: 1.4;
+        }
+
+        .status-message a {
+            color: #66aacc;
+            text-decoration: none;
+        }
+
+        .status-message a:hover {
+            text-decoration: underline;
+        }
+
+        .status-message input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        .status-message button {
+            width: 100%;
+            padding: 10px;
+            background: #4a4a4a;
+            border: none;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .status-message button:hover {
+            background: #5a5a5a;
+        }
+
+        .status-message label {
+            display: block;
+            margin-bottom: 5px;
+            color: #fff;
+            font-size: 12px;
+        }
+
+        .status-message ol {
+            margin-left: 15px;
+        }
+
+        .status-message li {
+            margin-bottom: 10px;
+        }
+
+        .status-message code {
+            background: #1a1a1a;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 11px;
         }
 
         .backup-timer {
@@ -441,7 +846,6 @@
         </div>
     </div>
 
-    <!-- Menu Button -->
     <button class="menu-button" id="menuButton">
         <div class="hamburger">
             <span></span>
@@ -450,13 +854,11 @@
         </div>
     </button>
 
-    <!-- Save Status -->
-    <div class="save-status saved" id="saveStatus">● Saved</div>
+    <div class="save-status saved" id="saveStatus">Saved</div>
 
-    <!-- Menu Panel -->
     <div class="menu-panel" id="menuPanel">
         <div class="menu-header">
-            <div class="menu-title">◼ Focus Writer</div>
+            <div class="menu-title">Focus Writer</div>
             <div class="menu-subtitle">Distraction-free writing with auto-backup</div>
         </div>
 
@@ -470,17 +872,16 @@
         </div>
 
         <div class="menu-section">
-            <h3>Auto-Backup</h3>
+            <h3>Google Drive Backup</h3>
             <div class="menu-buttons">
-                <button class="menu-button-item" onclick="detailedDiagnostic()">🔧 Test Setup</button>
-                <button class="menu-button-item" onclick="connectGoogleDrive()" id="driveConnectBtn">Connect Drive</button>
-                <button class="menu-button-item" onclick="verifyFolderAccess()" id="driveVerifyBtn" style="display: none;">Verify Folder</button>
+                <button class="menu-button-item" onclick="setupOrConnect()" id="driveConnectBtn">Setup Google Drive</button>
+                <button class="menu-button-item" onclick="selectBackupFolder()" id="driveFolderBtn" style="display: none;">Set Backup Folder</button>
                 <button class="menu-button-item" onclick="loadFromGoogleDrive()" id="driveLoadBtn" style="display: none;">Load from Drive</button>
-                <button class="menu-button-item" onclick="resetBackupFile()" id="driveResetBtn" style="display: none;">Reset Backup File</button>
                 <button class="menu-button-item" onclick="manualBackup()" id="driveBackupBtn" style="display: none;">Manual Backup</button>
+                <button class="menu-button-item" onclick="clearGoogleCredentials()" id="driveClearBtn" style="display: none;">Clear Credentials</button>
                 <button class="menu-button-item" onclick="disconnectGoogleDrive()" id="driveDisconnectBtn" style="display: none;">Disconnect</button>
             </div>
-            <div class="status-message" id="driveStatus">Click "Test Setup" to check Google Drive integration<br><br>⚠️ <strong>Important:</strong> Make sure you sign in with the Google account that has access to your target folder. If you have multiple Google accounts, you might need to sign out of others first.</div>
+            <div class="status-message" id="driveStatus">Click "Setup Google Drive" to configure automatic backups</div>
             <div class="backup-timer" id="backupTimer"></div>
         </div>
 
@@ -509,10 +910,19 @@
         </div>
     </div>
 
-    <!-- Overlay -->
     <div class="overlay" id="overlay"></div>
 
-    <!-- Focus Mode -->
+    <!-- Setup Modal -->
+    <div class="setup-modal" id="setupModal">
+        <div class="setup-modal-header">
+            <h2 id="setupModalTitle">Setup Google Drive</h2>
+            <button class="setup-modal-close" onclick="closeSetupModal()">&times;</button>
+        </div>
+        <div class="setup-modal-content" id="setupModalContent">
+            <!-- Content will be dynamically inserted here -->
+        </div>
+    </div>
+
     <div class="focus-mode" id="focusMode">
         <button class="focus-exit" onclick="toggleFocusMode()">Exit Ultra Focus</button>
         <div class="editor" 
@@ -522,7 +932,6 @@
         </div>
     </div>
 
-    <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <script>
@@ -540,36 +949,37 @@
         const overlay = document.getElementById('overlay');
         const writingArea = document.getElementById('writingArea');
 
-        // Google Drive variables
+        // Google Drive variables - now user-configurable
         let isGoogleDriveLoaded = false;
         let isSignedIn = false;
         let accessToken = null;
+        let tokenExpiry = null;
         let currentFileId = null;
-        const CLIENT_ID = '224286904313-js0rh1i530am7s9rle98q6grl92gp3vk.apps.googleusercontent.com';
-        const API_KEY = 'AIzaSyCyIueSk6Luj3kbLs2EELibnJ6g4LT7c2o';
-        const SCOPES = 'https://www.googleapis.com/auth/drive';
+        let sessionId = localStorage.getItem('focusWriterSessionId') || null;
+        let CLIENT_ID = localStorage.getItem('focusWriterClientId') || null;
+        let API_KEY = localStorage.getItem('focusWriterApiKey') || null;
+        let CLIENT_SECRET = localStorage.getItem('focusWriterClientSecret') || null;
+        let TARGET_FOLDER_ID = localStorage.getItem('focusWriterFolderId') || null;
         
-        // Target folder ID from the URL
-        const TARGET_FOLDER_ID = '1HDSoa7EThzo15nkwWlb2RURzBWNxSIAe';
+        // IMPORTANT: Replace this with your Cloudflare Worker URL
+        const WORKER_URL = 'https://bcmwriter.goldenjanitors.workers.dev';
+        
+        const SCOPES = 'https://www.googleapis.com/auth/drive';
         const BACKUP_FILE_NAME = 'focus-writer-backup.txt';
         
         // Auto-backup variables
         let autoBackupInterval = null;
         let backupCountdown = null;
         let nextBackupTime = null;
-        const BACKUP_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const BACKUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
         // Menu functionality
         function toggleMenu() {
-            console.log('Menu button clicked!');
             isMenuOpen = !isMenuOpen;
-            
             menuPanel.classList.toggle('open', isMenuOpen);
             menuButton.classList.toggle('active', isMenuOpen);
             overlay.classList.toggle('active', isMenuOpen);
             writingArea.classList.toggle('menu-open', isMenuOpen);
-            
-            console.log('Menu open:', isMenuOpen);
         }
 
         function closeMenu() {
@@ -580,6 +990,21 @@
             writingArea.classList.remove('menu-open');
         }
 
+        // Setup Modal Functions
+        function openSetupModal(title, content) {
+            document.getElementById('setupModalTitle').textContent = title;
+            document.getElementById('setupModalContent').innerHTML = content;
+            document.getElementById('setupModal').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        function closeSetupModal() {
+            document.getElementById('setupModal').classList.remove('active');
+            if (!isMenuOpen) {
+                document.getElementById('overlay').classList.remove('active');
+            }
+        }
+
         // Auto-save functionality
         function autoSave() {
             const activeEditor = isInFocusMode ? focusEditor : currentEditor;
@@ -588,18 +1013,14 @@
             showSaveStatus('saving');
             
             try {
-                // Local save
-                window.focusWriterContent = content;
                 localStorage.setItem('focusWriterContent', content);
                 localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
-                console.log('💾 Auto-saved locally at', new Date().toLocaleTimeString());
-                console.log('📄 Content length:', content.length);
                 
                 setTimeout(() => {
                     showSaveStatus('saved');
                 }, 500);
             } catch (error) {
-                console.error('❌ Error saving locally:', error);
+                console.error('Error saving locally:', error);
                 showSaveStatus('error');
             }
         }
@@ -615,50 +1036,49 @@
             
             switch (status) {
                 case 'saving':
-                    saveStatusElement.textContent = '● Saving...';
+                    saveStatusElement.textContent = 'Saving...';
                     saveStatusElement.classList.add('saving');
                     break;
                 case 'saved':
-                    saveStatusElement.textContent = '● Saved';
+                    saveStatusElement.textContent = 'Saved';
                     saveStatusElement.classList.add('saved');
                     break;
                 case 'backing-up':
-                    saveStatusElement.textContent = '● Backing up...';
+                    saveStatusElement.textContent = 'Backing up...';
                     saveStatusElement.classList.add('backup');
                     break;
                 case 'backed-up':
-                    saveStatusElement.textContent = '● Backed up';
+                    saveStatusElement.textContent = 'Backed up';
                     saveStatusElement.classList.add('backup');
                     setTimeout(() => showSaveStatus('saved'), 2000);
                     break;
                 case 'loading':
-                    saveStatusElement.textContent = '● Loading...';
+                    saveStatusElement.textContent = 'Loading...';
                     saveStatusElement.classList.add('loading');
                     break;
                 case 'loaded':
-                    saveStatusElement.textContent = '● Loaded';
+                    saveStatusElement.textContent = 'Loaded';
                     saveStatusElement.classList.add('loading');
                     setTimeout(() => showSaveStatus('saved'), 2000);
                     break;
                 case 'error':
-                    saveStatusElement.textContent = '● Error';
+                    saveStatusElement.textContent = 'Error';
                     break;
                 default:
-                    saveStatusElement.textContent = '● Saved';
+                    saveStatusElement.textContent = 'Saved';
                     saveStatusElement.classList.add('saved');
             }
         }
 
         function loadSavedContent() {
             try {
-                const savedContent = window.focusWriterContent || localStorage.getItem('focusWriterContent');
+                const savedContent = localStorage.getItem('focusWriterContent');
                 if (savedContent) {
                     currentEditor.innerHTML = savedContent;
                     focusEditor.innerHTML = savedContent;
                     updateStats();
                 }
                 
-                // Load file ID if exists
                 currentFileId = localStorage.getItem('focusWriterFileId');
             } catch (error) {
                 console.error('Error loading saved content:', error);
@@ -667,7 +1087,6 @@
 
         function clearSavedContent() {
             try {
-                window.focusWriterContent = null;
                 localStorage.removeItem('focusWriterContent');
                 localStorage.removeItem('focusWriterLastSaved');
                 localStorage.removeItem('focusWriterFileId');
@@ -761,67 +1180,57 @@
                 showSaveStatus('saved');
                 currentEditor.focus();
                 closeMenu();
-                
-                // Reset backup file ID
-                localStorage.removeItem('focusWriterFileId');
             }
         }
 
         function debugLocalStorage() {
-            console.log('=== LOCAL STORAGE DEBUG ===');
-            
             try {
                 const content = localStorage.getItem('focusWriterContent');
                 const lastSaved = localStorage.getItem('focusWriterLastSaved');
                 const fileId = localStorage.getItem('focusWriterFileId');
+                const clientId = localStorage.getItem('focusWriterClientId');
+                const folderId = localStorage.getItem('focusWriterFolderId');
                 
-                console.log('💾 Content length:', content ? content.length : 'null');
-                console.log('🕒 Last saved:', lastSaved || 'never');
-                console.log('🆔 File ID:', fileId || 'none');
-                console.log('📝 Current editor content length:', currentEditor.innerHTML.length);
+                console.log('=== LOCAL STORAGE DEBUG ===');
+                console.log('Content length:', content ? content.length : 'null');
+                console.log('Last saved:', lastSaved || 'never');
+                console.log('File ID:', fileId || 'none');
+                console.log('Client ID configured:', clientId ? 'Yes' : 'No');
+                console.log('Folder ID:', folderId || 'none');
                 
                 alert(`Local Storage Debug:
-                
+
 Content stored: ${content ? content.length + ' characters' : 'None'}
 Last saved: ${lastSaved || 'Never'}
-File ID: ${fileId || 'None'}
-Current editor: ${currentEditor.innerHTML.length} characters
+Drive File ID: ${fileId || 'None'}
+Drive configured: ${clientId ? 'Yes' : 'No'}
+Folder ID: ${folderId || 'Not set'}
 
 Check console (F12) for full details.`);
                 
             } catch (error) {
-                console.error('❌ localStorage error:', error);
-                alert('❌ Error checking localStorage: ' + error.message);
+                console.error('localStorage error:', error);
+                alert('Error checking localStorage: ' + error.message);
             }
-        }
-
-        function resetBackupFile() {
-            console.log('🔄 Resetting backup file to target folder...');
-            currentFileId = null;
-            localStorage.removeItem('focusWriterFileId');
-            updateDriveStatus('🔄 Reset complete - next backup will create new file in target folder');
         }
 
         // Auto-backup timer functions
         function startBackupTimer() {
-            if (!isSignedIn) return;
+            if (!isSignedIn || !TARGET_FOLDER_ID) return;
             
-            // Clear existing intervals
             if (autoBackupInterval) clearInterval(autoBackupInterval);
             if (backupCountdown) clearInterval(backupCountdown);
             
             nextBackupTime = Date.now() + BACKUP_INTERVAL;
             
-            // Main backup interval (every 5 minutes)
             autoBackupInterval = setInterval(() => {
                 performAutoBackup();
                 nextBackupTime = Date.now() + BACKUP_INTERVAL;
             }, BACKUP_INTERVAL);
             
-            // Countdown display (every second)
             backupCountdown = setInterval(updateBackupTimer, 1000);
             
-            console.log('🕐 Auto-backup started (every 5 minutes)');
+            console.log('Auto-backup started (every 5 minutes)');
         }
 
         function stopBackupTimer() {
@@ -834,7 +1243,7 @@ Check console (F12) for full details.`);
                 backupCountdown = null;
             }
             document.getElementById('backupTimer').innerHTML = '';
-            console.log('🛑 Auto-backup stopped');
+            console.log('Auto-backup stopped');
         }
 
         function updateBackupTimer() {
@@ -849,82 +1258,349 @@ Check console (F12) for full details.`);
         }
 
         function performAutoBackup() {
-            if (!isSignedIn || !accessToken) {
-                console.log('⚠️ Auto-backup skipped - not connected to Drive');
+            if (!isSignedIn || !accessToken || !TARGET_FOLDER_ID) {
+                console.log('Auto-backup skipped - not fully configured');
                 return;
             }
             
-            console.log('🔄 Performing auto-backup...');
-            backupToGoogleDrive(true); // true = silent backup
+            // Check if token expires in next 5 minutes, refresh if needed
+            if (tokenExpiry && Date.now() > tokenExpiry - (5 * 60 * 1000)) {
+                console.log('Token expiring soon, refreshing...');
+                refreshAccessToken().then(refreshed => {
+                    if (refreshed) {
+                        console.log('Token refreshed, performing backup');
+                        backupToGoogleDrive(true);
+                    } else {
+                        console.log('Token refresh failed, stopping auto-backup');
+                        updateDriveStatus('Session expired. Please reconnect to continue auto-backup.');
+                        stopBackupTimer();
+                    }
+                });
+            } else {
+                console.log('Performing auto-backup...');
+                backupToGoogleDrive(true);
+            }
         }
 
-        // Google Drive Functions
+        // Google Drive Setup Functions
         function updateDriveStatus(message) {
             document.getElementById('driveStatus').innerHTML = message;
         }
 
-        function detailedDiagnostic() {
-            updateDriveStatus('🔍 Running diagnostic...');
-            console.log('=== GOOGLE DRIVE DIAGNOSTIC ===');
-            
-            let diagnosticResults = [];
-            
-            // Check 1: Protocol
-            if (window.location.protocol === 'file:') {
-                diagnosticResults.push('❌ File protocol - must use HTTP server');
-                updateDriveStatus(diagnosticResults.join('<br>'));
-                return;
-            }
-            
-            diagnosticResults.push('✅ HTTP protocol OK: ' + window.location.origin);
-            
-            // Check 2: Google Identity Services
-            if (typeof google === 'undefined') {
-                diagnosticResults.push('⏳ Loading Google Identity Services...');
-                updateDriveStatus(diagnosticResults.join('<br>'));
-                
-                setTimeout(() => {
-                    if (typeof google === 'undefined') {
-                        diagnosticResults.push('❌ Google Identity Services failed to load');
-                        diagnosticResults.push('🔧 Try: disable ad blockers, enable cookies');
-                    } else {
-                        diagnosticResults.push('✅ Google Identity Services loaded');
-                        diagnosticResults.push('✅ Setup complete - ready to connect');
-                    }
-                    updateDriveStatus(diagnosticResults.join('<br>'));
-                }, 3000);
+        function setupOrConnect() {
+            if (!CLIENT_ID || !API_KEY) {
+                showSetupWizardStep1();
+            } else if (!isSignedIn) {
+                connectGoogleDrive();
+            } else if (!TARGET_FOLDER_ID) {
+                showSetupWizardStep2();
             } else {
-                diagnosticResults.push('✅ Google Identity Services loaded');
-                diagnosticResults.push('📁 Target folder: ' + TARGET_FOLDER_ID);
-                diagnosticResults.push('🔧 Scope: Full Google Drive access');
-                diagnosticResults.push('✅ Setup complete - ready to connect');
-                updateDriveStatus(diagnosticResults.join('<br>'));
+                connectGoogleDrive();
             }
-            
-            // Check 3: GAPI availability
-            loadGAPI().then(() => {
-                diagnosticResults.push('✅ Google API client loaded');
-                updateDriveStatus(diagnosticResults.join('<br>'));
-            }).catch(error => {
-                diagnosticResults.push('❌ Google API error: ' + error.message);
-                updateDriveStatus(diagnosticResults.join('<br>'));
-            });
         }
 
-        function verifyFolderAccess() {
-            if (!isSignedIn || !accessToken) {
-                updateDriveStatus('❌ Not connected to Google Drive');
+        function showSetupWizardStep1() {
+            const currentClientId = CLIENT_ID || '';
+            const currentApiKey = API_KEY || '';
+            const currentClientSecret = CLIENT_SECRET || '';
+            
+            const wizardHTML = `
+                <h4>Step 1: Google Cloud Setup</h4>
+                
+                <p>To enable Google Drive backups with persistent login, you need your Google Cloud credentials.</p>
+                
+                <button onclick="showDetailedSetupInstructions()" class="primary" style="margin-bottom: 20px;">
+                    📖 Show Me How to Get Credentials
+                </button>
+                
+                <label>Client ID:</label>
+                <input type="text" id="clientIdInput" value="${currentClientId}" placeholder="xxx.apps.googleusercontent.com">
+                
+                <label>Client Secret:</label>
+                <input type="password" id="clientSecretInput" value="${currentClientSecret}" placeholder="GOCSPX-xxx...">
+                
+                <label>API Key:</label>
+                <input type="text" id="apiKeyInput" value="${currentApiKey}" placeholder="AIza...">
+                
+                <div class="setup-button-group">
+                    <button onclick="saveCredentialsAndContinue()" class="primary">Save & Continue</button>
+                    <button onclick="skipSetup()" class="secondary">Skip (No Backups)</button>
+                </div>
+            `;
+            
+            openSetupModal('Setup Google Drive', wizardHTML);
+        }
+
+        function showDetailedSetupInstructions() {
+            const instructions = `
+                <h4>Getting Your Credentials</h4>
+                
+                <div class="setup-info-box">
+                    <p style="margin: 0;"><strong>Don't worry!</strong> This is a one-time setup and takes about 5 minutes.</p>
+                </div>
+                
+                <ol>
+                    <li>
+                        <strong>Open Google Cloud Console:</strong><br>
+                        <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a>
+                    </li>
+                    
+                    <li>
+                        <strong>Create a Project:</strong><br>
+                        Click "Select a project" at the top → "New Project"<br>
+                        Name it "Focus Writer" → Click "Create"
+                    </li>
+                    
+                    <li>
+                        <strong>Enable Google Drive API:</strong><br>
+                        Go to "APIs & Services" → "Enable APIs and Services"<br>
+                        Search for "Google Drive API" → Click "Enable"
+                    </li>
+                    
+                    <li>
+                        <strong>Create OAuth Credentials:</strong><br>
+                        Go to "Credentials" → "Create Credentials" → "OAuth client ID"<br>
+                        If asked, configure consent screen (External, add your email)<br>
+                        Application type: "Web application"<br>
+                        Add authorized origin: <code>https://bigcatmellow.github.io</code><br>
+                        Copy the <strong>Client ID</strong> AND <strong>Client Secret</strong>
+                    </li>
+                    
+                    <li>
+                        <strong>Create API Key:</strong><br>
+                        "Create Credentials" → "API Key"<br>
+                        Restrict it to "Google Drive API" (recommended)<br>
+                        Copy the <strong>API Key</strong>
+                    </li>
+                    
+                    <li>
+                        <strong>Paste All Three Here:</strong><br>
+                        Return to this app and paste all three credentials
+                    </li>
+                </ol>
+                
+                <div class="setup-info-box" style="border-left-color: #66cc66; background: #2d4a2d;">
+                    <p style="margin: 0; font-size: 12px;"><strong>Note:</strong> With Client Secret, you'll stay signed in for months instead of just 1 hour!</p>
+                </div>
+                
+                <button onclick="showSetupWizardStep1()" class="primary">Back to Setup Form</button>
+            `;
+            
+            openSetupModal('Setup Instructions', instructions);
+        }
+
+        function saveCredentialsAndContinue() {
+            const clientId = document.getElementById('clientIdInput').value.trim();
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            
+            if (!clientId || !apiKey) {
+                alert('Please enter both Client ID and API Key');
                 return;
             }
-
-            updateDriveStatus('🔍 Verifying folder access...');
             
-            // Try to get folder information
-            fetch(`https://www.googleapis.com/drive/v3/files/${TARGET_FOLDER_ID}?fields=id,name,parents,capabilities`, {
-                method: 'GET',
-                headers: new Headers({
-                    'Authorization': `Bearer ${accessToken}`
-                })
+            CLIENT_ID = clientId;
+            API_KEY = apiKey;
+            
+            localStorage.setItem('focusWriterClientId', CLIENT_ID);
+            localStorage.setItem('focusWriterApiKey', API_KEY);
+            
+            updateDriveUI();
+            
+            // Show success and connect
+            const successHTML = `
+                <div class="setup-success-box">
+                    <p style="margin: 0;"><strong>✓ Credentials Saved!</strong> Connecting to Google Drive...</p>
+                </div>
+                <p>Please sign in with your Google account in the popup window.</p>
+            `;
+            
+            openSetupModal('Connecting...', successHTML);
+            
+            setTimeout(() => {
+                connectGoogleDrive();
+            }, 1500);
+        }
+
+        function skipSetup() {
+            closeSetupModal();
+            updateDriveStatus('Google Drive backup skipped. Your work will only be saved locally in your browser.');
+            updateDriveUI();
+        }
+
+        function showSetupWizardStep2() {
+            const wizardHTML = `
+                <h4>Step 2: Choose Backup Location</h4>
+                
+                <p>Where should your documents be backed up in Google Drive?</p>
+                
+                <button onclick="createBackupFolder()" class="primary" style="margin-bottom: 10px;">
+                    ✨ Create New Folder (Recommended)
+                </button>
+                
+                <button onclick="showExistingFolderInstructions()" class="secondary">
+                    📁 Use Existing Folder
+                </button>
+                
+                <div class="setup-info-box" style="margin-top: 20px;">
+                    <p style="margin: 0; font-size: 12px;"><strong>Tip:</strong> Creating a new folder is easier and keeps your backups organized.</p>
+                </div>
+            `;
+            
+            openSetupModal('Choose Backup Location', wizardHTML);
+        }
+
+        function showExistingFolderInstructions() {
+            const instructions = `
+                <h4>Use Existing Folder</h4>
+                
+                <p><strong>How to find your folder ID:</strong></p>
+                
+                <ol>
+                    <li>Open <a href="https://drive.google.com" target="_blank">Google Drive</a></li>
+                    <li>Navigate to the folder you want to use</li>
+                    <li>Look at the URL in your browser's address bar</li>
+                    <li>Copy everything after <code>/folders/</code></li>
+                </ol>
+                
+                <div class="setup-info-box">
+                    <p style="margin-bottom: 5px; font-size: 12px;"><strong>Example URL:</strong></p>
+                    <code style="font-size: 11px;">drive.google.com/drive/folders/<strong style="color: #66cc66;">1HDSoa7EThz...</strong></code>
+                </div>
+                
+                <label>Paste Folder ID:</label>
+                <input type="text" id="folderIdInput" placeholder="1HDSoa7EThzo15nkwWlb2RURzBWNxSIAe">
+                
+                <div class="setup-button-group">
+                    <button onclick="saveExistingFolder()" class="primary">Save Folder</button>
+                    <button onclick="showSetupWizardStep2()" class="secondary">Back</button>
+                </div>
+            `;
+            
+            openSetupModal('Use Existing Folder', instructions);
+        }
+
+        function saveExistingFolder() {
+            const folderId = document.getElementById('folderIdInput').value.trim();
+            
+            if (!folderId) {
+                alert('Please enter a folder ID');
+                return;
+            }
+            
+            TARGET_FOLDER_ID = folderId;
+            localStorage.setItem('focusWriterFolderId', TARGET_FOLDER_ID);
+            
+            updateDriveUI();
+            showSetupComplete();
+        }
+
+        function showSetupComplete() {
+            const completeHTML = `
+                <div class="setup-success-box">
+                    <h4 style="color: #66cc66; margin: 0 0 10px 0;">✓ Setup Complete!</h4>
+                    <p style="margin: 0;">Your Google Drive backup is now configured and active.</p>
+                </div>
+                
+                <div class="setup-info-box">
+                    <p style="margin-bottom: 8px;"><strong>What happens now:</strong></p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.8;">
+                        <li>Your work auto-saves locally as you type</li>
+                        <li>Every 5 minutes, it backs up to Google Drive</li>
+                        <li>Use "Load from Drive" to sync across devices</li>
+                        <li>Use "Manual Backup" to save immediately</li>
+                    </ul>
+                </div>
+                
+                <button onclick="loadFromGoogleDrive()" class="secondary" style="margin-bottom: 10px;">
+                    📥 Load Existing Document
+                </button>
+                
+                <button onclick="closeSetupAndStartWriting()" class="primary">
+                    ✍️ Start Writing
+                </button>
+            `;
+            
+            openSetupModal('All Set!', completeHTML);
+            
+            // Start auto-backup timer
+            setTimeout(() => {
+                startBackupTimer();
+            }, 2000);
+        }
+
+        function closeSetupAndStartWriting() {
+            closeSetupModal();
+            updateDriveStatus('Google Drive backup active. Auto-saving every 5 minutes.');
+            closeMenu();
+            currentEditor.focus();
+        }
+
+        function showSetupForm() {
+            showSetupWizardStep1();
+        }
+
+        function saveGoogleCredentials() {
+            saveCredentialsAndContinue();
+        }
+
+        function showSetupInstructions() {
+            showDetailedSetupInstructions();
+        }
+
+        function clearGoogleCredentials() {
+            if (confirm('Remove saved Google Drive credentials, session, and folder settings?')) {
+                localStorage.removeItem('focusWriterClientId');
+                localStorage.removeItem('focusWriterClientSecret');
+                localStorage.removeItem('focusWriterApiKey');
+                localStorage.removeItem('focusWriterFolderId');
+                localStorage.removeItem('focusWriterSessionId');
+                localStorage.removeItem('focusWriterAccessToken');
+                localStorage.removeItem('focusWriterTokenExpiry');
+                CLIENT_ID = null;
+                CLIENT_SECRET = null;
+                API_KEY = null;
+                TARGET_FOLDER_ID = null;
+                sessionId = null;
+                disconnectGoogleDrive();
+                updateDriveStatus('Credentials cleared. Click "Setup Google Drive" to configure.');
+                updateDriveUI();
+            }
+        }
+
+        function selectBackupFolder() {
+            if (!CLIENT_ID || !API_KEY) {
+                updateDriveStatus('Please setup Google Drive credentials first');
+                return;
+            }
+            
+            if (!isSignedIn) {
+                updateDriveStatus('Please connect to Google Drive first');
+                return;
+            }
+            
+            showSetupWizardStep2();
+        }
+
+        function createBackupFolder() {
+            if (!isSignedIn || !accessToken) {
+                updateDriveStatus('Connect to Google Drive first');
+                return;
+            }
+            
+            updateDriveStatus('Creating backup folder...');
+            
+            const folderMetadata = {
+                name: 'Focus Writer Backups',
+                mimeType: 'application/vnd.google-apps.folder'
+            };
+            
+            fetch('https://www.googleapis.com/drive/v3/files?fields=id,name,webViewLink', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(folderMetadata)
             })
             .then(response => response.json())
             .then(data => {
@@ -932,104 +1608,13 @@ Check console (F12) for full details.`);
                     throw new Error(data.error.message);
                 }
                 
-                console.log('📁 Folder info:', data);
-                let statusMessage = `✅ Folder access verified:<br>📁 Name: ${data.name}<br>🆔 ID: ${data.id}`;
-                
-                if (data.capabilities) {
-                    statusMessage += `<br>✏️ Can edit: ${data.capabilities.canEdit || 'unknown'}`;
-                    statusMessage += `<br>📄 Can add children: ${data.capabilities.canAddChildren || 'unknown'}`;
-                }
-                
-                updateDriveStatus(statusMessage);
+                TARGET_FOLDER_ID = data.id;
+                localStorage.setItem('focusWriterFolderId', TARGET_FOLDER_ID);
+                updateDriveUI();
+                showSetupComplete();
             })
             .catch(error => {
-                console.error('❌ Folder access error:', error);
-                updateDriveStatus(`❌ Cannot access folder: ${error.message}<br>🔧 Make sure you have write access to this folder<br>🔧 Try sharing the folder with the Google account you're using`);
-            });
-        }
-
-        function loadFromGoogleDrive() {
-            if (!isSignedIn || !accessToken) {
-                updateDriveStatus('❌ Not connected to Google Drive');
-                return;
-            }
-
-            updateDriveStatus('📥 Loading from Google Drive...');
-            showSaveStatus('loading');
-            console.log('📥 Starting Google Drive load...');
-
-            // Search for the backup file in the target folder
-            const query = `name='${BACKUP_FILE_NAME}' and parents in '${TARGET_FOLDER_ID}' and trashed=false`;
-            
-            fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`, {
-                method: 'GET',
-                headers: new Headers({
-                    'Authorization': `Bearer ${accessToken}`
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error.message);
-                }
-
-                console.log('🔍 Search results:', data);
-
-                if (!data.files || data.files.length === 0) {
-                    updateDriveStatus('📭 No backup file found in Google Drive<br>💡 Start writing to create your first backup');
-                    showSaveStatus('saved');
-                    return;
-                }
-
-                // Get the first (most recent) file
-                const file = data.files[0];
-                currentFileId = file.id;
-                localStorage.setItem('focusWriterFileId', currentFileId);
-
-                console.log('📄 Found backup file:', file);
-
-                // Download the file content
-                return fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
-                    method: 'GET',
-                    headers: new Headers({
-                        'Authorization': `Bearer ${accessToken}`
-                    })
-                });
-            })
-            .then(response => {
-                if (!response) return; // No file found case
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                return response.text();
-            })
-            .then(content => {
-                if (!content && content !== '') return; // No file found case
-                
-                console.log('📥 Loaded content length:', content.length);
-
-                // Load content into editors
-                currentEditor.innerText = content;
-                focusEditor.innerText = content;
-                
-                // Save locally
-                localStorage.setItem('focusWriterContent', currentEditor.innerHTML);
-                localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
-                
-                updateStats();
-                showSaveStatus('loaded');
-                
-                const fileInfo = `✅ Document loaded from Google Drive<br>📄 File: ${BACKUP_FILE_NAME}<br>📊 ${content.length} characters loaded<br>⏰ Auto-backup every 5 minutes`;
-                updateDriveStatus(fileInfo);
-                
-                console.log('✅ Document loaded successfully from Google Drive');
-            })
-            .catch(error => {
-                console.error('❌ Load error:', error);
-                updateDriveStatus(`❌ Failed to load from Google Drive: ${error.message}<br>🔧 Check console for details`);
-                showSaveStatus('error');
+                updateDriveStatus(`Failed to create folder: ${error.message}<br><button onclick="showSetupWizardStep2()">Try Again</button>`);
             });
         }
 
@@ -1059,58 +1644,65 @@ Check console (F12) for full details.`);
         }
 
         function connectGoogleDrive() {
-            console.log('🔗 Connect Drive button clicked!');
-            updateDriveStatus('🔄 Connecting...');
+            console.log('Connecting to Google Drive...');
+            
+            if (!CLIENT_ID || !API_KEY) {
+                showSetupForm();
+                return;
+            }
             
             if (window.location.protocol === 'file:') {
-                updateDriveStatus('❌ Must run from HTTP server');
+                updateDriveStatus('Must run from HTTP server, not file://');
                 return;
             }
             
             if (typeof google === 'undefined') {
-                updateDriveStatus('❌ Google Identity Services not loaded<br>🔧 Try refreshing page or disabling ad blockers');
+                updateDriveStatus('Google Identity Services not loaded. Try refreshing the page.');
                 return;
             }
+            
+            updateDriveStatus('Connecting...');
             
             try {
                 const client = google.accounts.oauth2.initTokenClient({
                     client_id: CLIENT_ID,
                     scope: SCOPES,
-                    hint: '', // This forces account picker
                     callback: (response) => {
-                        console.log('OAuth response:', response);
-                        
                         if (response.error) {
                             console.error('OAuth error:', response.error);
-                            updateDriveStatus('❌ Authentication failed: ' + response.error);
+                            updateDriveStatus('Authentication failed: ' + response.error);
                             return;
                         }
                         
                         if (response.access_token) {
                             accessToken = response.access_token;
+                            tokenExpiry = Date.now() + (3600 * 1000); // 1 hour from now
                             isSignedIn = true;
+                            
+                            // Store token and expiry in localStorage
+                            localStorage.setItem('focusWriterAccessToken', accessToken);
+                            localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
+                            
                             updateDriveUI();
-                            updateDriveStatus('✅ Connected to Google Drive<br>📥 Loading your document...');
-                            console.log('✅ Successfully connected to Google Drive');
                             
                             loadGAPI().then(() => {
                                 gapi.client.setToken({access_token: accessToken});
                                 isGoogleDriveLoaded = true;
                                 
-                                // Verify folder access first
-                                setTimeout(() => {
-                                    verifyFolderAccess();
+                                if (!TARGET_FOLDER_ID) {
+                                    showSetupWizardStep2();
+                                } else {
+                                    updateDriveStatus('Connected to Google Drive! Loading document...');
                                     
-                                    // Auto-load the document from Google Drive
                                     setTimeout(() => {
                                         loadFromGoogleDrive();
-                                        
-                                        // Start auto-backup timer after loading
                                         setTimeout(() => {
                                             startBackupTimer();
                                         }, 3000);
-                                    }, 2000);
-                                }, 1000);
+                                    }, 1000);
+                                }
+                            }).catch(error => {
+                                updateDriveStatus('API initialization failed: ' + error.message);
                             });
                         }
                     },
@@ -1119,8 +1711,8 @@ Check console (F12) for full details.`);
                 client.requestAccessToken();
                 
             } catch (error) {
-                console.error('❌ Connection error:', error);
-                updateDriveStatus('❌ Connection failed: ' + error.message);
+                console.error('Connection error:', error);
+                updateDriveStatus('Connection failed: ' + error.message);
             }
         }
 
@@ -1131,10 +1723,16 @@ Check console (F12) for full details.`);
                 });
             }
             
-            // Stop auto-backup
             stopBackupTimer();
             
+            // Clear stored tokens and session
+            localStorage.removeItem('focusWriterAccessToken');
+            localStorage.removeItem('focusWriterTokenExpiry');
+            localStorage.removeItem('focusWriterSessionId');
+            
             accessToken = null;
+            tokenExpiry = null;
+            sessionId = null;
             isSignedIn = false;
             isGoogleDriveLoaded = false;
             currentFileId = null;
@@ -1142,8 +1740,87 @@ Check console (F12) for full details.`);
             updateDriveStatus('Disconnected from Google Drive');
         }
 
+        function loadFromGoogleDrive() {
+            if (!isSignedIn || !accessToken) {
+                updateDriveStatus('Not connected to Google Drive');
+                return;
+            }
+            
+            if (!TARGET_FOLDER_ID) {
+                updateDriveStatus('No backup folder set. Click "Set Backup Folder" first.');
+                return;
+            }
+
+            updateDriveStatus('Loading from Google Drive...');
+            showSaveStatus('loading');
+
+            const query = `name='${BACKUP_FILE_NAME}' and parents in '${TARGET_FOLDER_ID}' and trashed=false`;
+            
+            fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`, {
+                method: 'GET',
+                headers: new Headers({
+                    'Authorization': `Bearer ${accessToken}`
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+
+                if (!data.files || data.files.length === 0) {
+                    updateDriveStatus('No backup file found in Google Drive. Start writing to create your first backup.');
+                    showSaveStatus('saved');
+                    return;
+                }
+
+                const file = data.files[0];
+                currentFileId = file.id;
+                localStorage.setItem('focusWriterFileId', currentFileId);
+
+                return fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+                    method: 'GET',
+                    headers: new Headers({
+                        'Authorization': `Bearer ${accessToken}`
+                    })
+                });
+            })
+            .then(response => {
+                if (!response) return;
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return response.text();
+            })
+            .then(content => {
+                if (!content && content !== '') return;
+
+                currentEditor.innerText = content;
+                focusEditor.innerText = content;
+                
+                localStorage.setItem('focusWriterContent', currentEditor.innerHTML);
+                localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+                
+                updateStats();
+                showSaveStatus('loaded');
+                
+                updateDriveStatus(`Document loaded from Google Drive<br>${content.length} characters loaded<br>Auto-backup every 5 minutes`);
+            })
+            .catch(error => {
+                console.error('Load error:', error);
+                updateDriveStatus(`Failed to load from Google Drive: ${error.message}`);
+                showSaveStatus('error');
+            });
+        }
+
         function manualBackup() {
-            backupToGoogleDrive(false); // false = show feedback
+            if (!TARGET_FOLDER_ID) {
+                updateDriveStatus('No backup folder set. Click "Set Backup Folder" first.');
+                return;
+            }
+            backupToGoogleDrive(false);
         }
 
         function verifyCurrentFile() {
@@ -1160,58 +1837,52 @@ Check console (F12) for full details.`);
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    console.log('❌ Current file not found:', data.error.message);
                     return false;
                 }
                 
-                console.log('📄 Current file info:', data);
-                
-                // Check if file is in target folder
                 const isInTargetFolder = data.parents && data.parents.includes(TARGET_FOLDER_ID);
-                console.log('📁 Is in target folder:', isInTargetFolder);
                 
                 if (!isInTargetFolder) {
-                    console.log('⚠️ Current file is NOT in target folder. Parents:', data.parents);
-                    console.log('🎯 Target folder:', TARGET_FOLDER_ID);
+                    console.log('Current file is NOT in target folder');
                     return false;
                 }
                 
                 return true;
             })
             .catch(error => {
-                console.error('❌ Error verifying current file:', error);
+                console.error('Error verifying current file:', error);
                 return false;
             });
         }
 
         function backupToGoogleDrive(silent = false) {
             if (!isSignedIn || !accessToken) {
-                if (!silent) updateDriveStatus('❌ Not connected to Google Drive');
+                if (!silent) updateDriveStatus('Not connected to Google Drive');
+                return;
+            }
+            
+            if (!TARGET_FOLDER_ID) {
+                if (!silent) updateDriveStatus('No backup folder set');
                 return;
             }
             
             if (!silent) {
-                updateDriveStatus('💾 Backing up to Google Drive...');
+                updateDriveStatus('Backing up to Google Drive...');
                 showSaveStatus('backing-up');
             }
             
             const activeEditor = isInFocusMode ? focusEditor : currentEditor;
             const content = activeEditor.innerText || activeEditor.textContent || '';
             
-            // Always save locally first
             localStorage.setItem('focusWriterContent', activeEditor.innerHTML);
             localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
-            console.log('💾 Saved locally to localStorage');
             
-            // Verify current file is in target folder before updating
             verifyCurrentFile().then(isValidFile => {
                 if (currentFileId && isValidFile) {
-                    // Update existing file
                     updateFileInDrive(content, silent);
                 } else {
-                    // Create new file (either no file ID or file not in target folder)
                     if (currentFileId && !isValidFile) {
-                        console.log('🔄 Current file not in target folder, creating new file...');
+                        console.log('Current file not in target folder, creating new file...');
                         currentFileId = null;
                         localStorage.removeItem('focusWriterFileId');
                     }
@@ -1226,26 +1897,19 @@ Check console (F12) for full details.`);
                 parents: [TARGET_FOLDER_ID]
             };
             
-            console.log('📤 Creating file in Drive folder:', TARGET_FOLDER_ID);
-            
             const form = new FormData();
             form.append('metadata', new Blob([JSON.stringify(fileMetadata)], {type: 'application/json'}));
             form.append('file', new Blob([content], {type: 'text/plain'}));
             
-            fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,parents,webViewLink', {
+            fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,parents', {
                 method: 'POST',
                 headers: new Headers({
                     'Authorization': `Bearer ${accessToken}`
                 }),
                 body: form
             })
-            .then(response => {
-                console.log('📡 Drive API response status:', response.status);
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('📡 Drive API response data:', data);
-                
                 if (data.error) {
                     throw new Error(data.error.message);
                 }
@@ -1254,23 +1918,20 @@ Check console (F12) for full details.`);
                 localStorage.setItem('focusWriterFileId', currentFileId);
                 
                 if (!silent) {
-                    updateDriveStatus(`✅ Backup created: ${BACKUP_FILE_NAME}<br>📁 Folder: ${TARGET_FOLDER_ID}<br>🔗 File ID: ${data.id}<br>📍 Parents: ${JSON.stringify(data.parents)}`);
+                    updateDriveStatus(`Backup created: ${BACKUP_FILE_NAME}<br>File ID: ${data.id}`);
                     showSaveStatus('backed-up');
                 }
-                console.log('✅ File created in Google Drive:', data);
             })
             .catch(error => {
-                console.error('❌ Backup error details:', error);
+                console.error('Backup error:', error);
                 if (!silent) {
-                    updateDriveStatus(`❌ Backup failed: ${error.message}<br>🔧 Check console for details<br>📁 Target folder: ${TARGET_FOLDER_ID}`);
+                    updateDriveStatus(`Backup failed: ${error.message}`);
                     showSaveStatus('error');
                 }
             });
         }
 
         function updateFileInDrive(content, silent) {
-            console.log('📝 Updating existing file:', currentFileId);
-            
             fetch(`https://www.googleapis.com/upload/drive/v3/files/${currentFileId}?uploadType=media&fields=id,name,modifiedTime`, {
                 method: 'PATCH',
                 headers: new Headers({
@@ -1279,34 +1940,26 @@ Check console (F12) for full details.`);
                 }),
                 body: content
             })
-            .then(response => {
-                console.log('📡 Update response status:', response.status);
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('📡 Update response data:', data);
-                
                 if (data.error) {
                     throw new Error(data.error.message);
                 }
                 
                 if (!silent) {
-                    updateDriveStatus(`✅ Backup updated: ${BACKUP_FILE_NAME}<br>📁 Last updated: ${new Date().toLocaleTimeString()}<br>🆔 File ID: ${data.id}`);
+                    updateDriveStatus(`Backup updated: ${BACKUP_FILE_NAME}<br>Last updated: ${new Date().toLocaleTimeString()}`);
                     showSaveStatus('backed-up');
                 }
-                console.log('✅ File updated in Google Drive:', data);
             })
             .catch(error => {
-                console.error('❌ Update error details:', error);
-                // If file doesn't exist, create a new one
+                console.error('Update error:', error);
                 if (error.message.includes('404') || error.message.includes('File not found')) {
-                    console.log('🔄 File not found, creating new one...');
                     currentFileId = null;
                     localStorage.removeItem('focusWriterFileId');
                     createFileInDrive(content, silent);
                 } else {
                     if (!silent) {
-                        updateDriveStatus(`❌ Backup update failed: ${error.message}<br>🔧 Check console for details`);
+                        updateDriveStatus(`Backup update failed: ${error.message}`);
                         showSaveStatus('error');
                     }
                 }
@@ -1317,30 +1970,44 @@ Check console (F12) for full details.`);
             const connectBtn = document.getElementById('driveConnectBtn');
             const disconnectBtn = document.getElementById('driveDisconnectBtn');
             const backupBtn = document.getElementById('driveBackupBtn');
-            const verifyBtn = document.getElementById('driveVerifyBtn');
-            const resetBtn = document.getElementById('driveResetBtn');
+            const folderBtn = document.getElementById('driveFolderBtn');
+            const clearBtn = document.getElementById('driveClearBtn');
             const loadBtn = document.getElementById('driveLoadBtn');
             
-            if (isSignedIn) {
-                connectBtn.style.display = 'none';
-                disconnectBtn.style.display = 'block';
-                backupBtn.style.display = 'block';
-                verifyBtn.style.display = 'block';
-                resetBtn.style.display = 'block';
-                loadBtn.style.display = 'block';
-            } else {
+            if (!CLIENT_ID || !API_KEY) {
+                connectBtn.textContent = 'Setup Google Drive';
                 connectBtn.style.display = 'block';
                 disconnectBtn.style.display = 'none';
                 backupBtn.style.display = 'none';
-                verifyBtn.style.display = 'none';
-                resetBtn.style.display = 'none';
+                folderBtn.style.display = 'none';
+                clearBtn.style.display = 'none';
+                loadBtn.style.display = 'none';
+            } else if (isSignedIn) {
+                connectBtn.style.display = 'none';
+                disconnectBtn.style.display = 'block';
+                backupBtn.style.display = 'block';
+                folderBtn.style.display = 'block';
+                clearBtn.style.display = 'block';
+                loadBtn.style.display = 'block';
+            } else {
+                connectBtn.textContent = 'Connect Drive';
+                connectBtn.style.display = 'block';
+                disconnectBtn.style.display = 'none';
+                backupBtn.style.display = 'none';
+                folderBtn.style.display = 'block';
+                clearBtn.style.display = 'block';
                 loadBtn.style.display = 'none';
             }
         }
 
         // Event listeners
         menuButton.addEventListener('click', toggleMenu);
-        overlay.addEventListener('click', closeMenu);
+        overlay.addEventListener('click', () => {
+            if (isMenuOpen) closeMenu();
+            if (document.getElementById('setupModal').classList.contains('active')) {
+                closeSetupModal();
+            }
+        });
 
         currentEditor.addEventListener('input', syncEditors);
         focusEditor.addEventListener('input', syncEditors);
@@ -1368,7 +2035,7 @@ Check console (F12) for full details.`);
             
             if (e.ctrlKey && e.key === 's') {
                 e.preventDefault();
-                if (isSignedIn) {
+                if (isSignedIn && TARGET_FOLDER_ID) {
                     manualBackup();
                 } else {
                     saveDocument();
@@ -1392,12 +2059,48 @@ Check console (F12) for full details.`);
         });
 
         // Initialize
-        console.log('Initializing Focus Writer with Auto-Backup...');
+        console.log('Initializing Focus Writer...');
         
         loadSavedContent();
         
-        // Start cursor on third line if no saved content
-        if (!window.focusWriterContent && !localStorage.getItem('focusWriterContent')) {
+        // Try to restore access token if still valid
+        const storedToken = localStorage.getItem('focusWriterAccessToken');
+        const storedExpiry = localStorage.getItem('focusWriterTokenExpiry');
+        
+        if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+            accessToken = storedToken;
+            tokenExpiry = parseInt(storedExpiry);
+            isSignedIn = true;
+            
+            console.log('Restored access token from storage');
+            
+            // Initialize GAPI with stored token
+            if (CLIENT_ID && API_KEY) {
+                loadGAPI().then(() => {
+                    gapi.client.setToken({access_token: accessToken});
+                    isGoogleDriveLoaded = true;
+                    updateDriveUI();
+                    
+                    if (TARGET_FOLDER_ID) {
+                        updateDriveStatus('Connected to Google Drive. Auto-backup active.');
+                        startBackupTimer();
+                    } else {
+                        updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
+                    }
+                }).catch(error => {
+                    console.error('Error initializing GAPI:', error);
+                });
+            }
+        } else {
+            // Token expired or doesn't exist
+            if (storedToken) {
+                console.log('Access token expired, clearing...');
+                localStorage.removeItem('focusWriterAccessToken');
+                localStorage.removeItem('focusWriterTokenExpiry');
+            }
+        }
+        
+        if (!localStorage.getItem('focusWriterContent')) {
             currentEditor.innerHTML = '<br><br>';
             focusEditor.innerHTML = '<br><br>';
             
@@ -1411,10 +2114,13 @@ Check console (F12) for full details.`);
         
         updateStats();
         showSaveStatus('saved');
+        updateDriveUI();
         currentEditor.focus();
         
-        console.log('Focus Writer initialized successfully!');
-        console.log('Target Google Drive folder:', TARGET_FOLDER_ID);
+        console.log('Focus Writer initialized!');
+        if (CLIENT_ID) console.log('Google Drive configured');
+        if (TARGET_FOLDER_ID) console.log('Backup folder:', TARGET_FOLDER_ID);
+        if (isSignedIn) console.log('Access token valid for', Math.round((tokenExpiry - Date.now()) / 60000), 'more minutes');
     </script>
 </body>
 </html>
