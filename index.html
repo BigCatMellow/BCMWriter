@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Focus Writer</title>
+    <title>BigCatMellow Writer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -709,7 +709,7 @@
 
     <div class="menu-panel" id="menuPanel">
         <div class="menu-header">
-            <div class="menu-title">Focus Writer</div>
+            <div class="menu-title">BigCatMellow Writer</div>
             <div class="menu-subtitle">Distraction-free writing with auto-backup</div>
         </div>
 
@@ -1252,7 +1252,7 @@ Check console (F12) for full details.`);
                     <li>
                         <strong>Create a Project:</strong><br>
                         Click "Select a project" at the top → "New Project"<br>
-                        Name it "Focus Writer" → Click "Create"
+                        Name it "BCMW" → Click "Create"
                     </li>
                     
                     <li>
@@ -1411,14 +1411,14 @@ Check console (F12) for full details.`);
             
             const loadingHTML = `
                 <div class="setup-info-box">
-                    <p style="margin: 0;">Creating "Focus Writer Backups" folder in your Google Drive...</p>
+                    <p style="margin: 0;">Creating "BCMW Backups" folder in your Google Drive...</p>
                 </div>
             `;
             
             openSetupModal('Creating Folder...', loadingHTML);
             
             const folderMetadata = {
-                name: 'Focus Writer Backups',
+                name: 'BCMW Backups',
                 mimeType: 'application/vnd.google-apps.folder'
             };
             
@@ -1966,7 +1966,7 @@ Check console (F12) for full details.`);
         });
 
         // ===== INITIALIZATION =====
-        console.log('Initializing Focus Writer...');
+        console.log('Initializing BigCatMellow Writer...');
         
         loadSavedContent();
         
@@ -2056,7 +2056,7 @@ Check console (F12) for full details.`);
         updateDriveUI();
         currentEditor.focus();
         
-        console.log('Focus Writer initialized!');
+        console.log('BCMW initialized!');
         if (CLIENT_ID) console.log('Google Drive configured');
         if (CLIENT_SECRET) console.log('Client Secret configured - persistent sessions enabled');
         if (TARGET_FOLDER_ID) console.log('Backup folder:', TARGET_FOLDER_ID);
