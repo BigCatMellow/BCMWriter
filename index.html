@@ -60,7 +60,7 @@
             background: transparent;
             resize: none;
             overflow-y: auto;
-            letter-spacing: 0.02em;
+            letter-spacing: 0.01em;
             font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
             border-radius: 8px;
             scrollbar-width: thin;
@@ -328,7 +328,7 @@
             padding: 80px;
             height: 100vh;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            letter-spacing: 0.02em;
+            letter-spacing: -0.01em;
             font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
         }
 
@@ -747,6 +747,16 @@
         </div>
 
         <div class="menu-section">
+            <h3>Debug Tools</h3>
+            <div class="menu-buttons">
+                <button class="menu-button-item" onclick="testTokenRefresh()">Test Token Refresh</button>
+                <button class="menu-button-item" onclick="checkSessionStatus()">Check Session Status</button>
+                <button class="menu-button-item" onclick="forceTokenExpiry()">Force Token Expiry</button>
+            </div>
+            <div class="status-message" id="debugStatus" style="font-family: monospace; font-size: 11px;"></div>
+        </div>
+
+        <div class="menu-section">
             <h3>Statistics</h3>
             <div class="stats-grid">
                 <div class="stat-item">
@@ -1062,6 +1072,82 @@ Check console (F12) for full details.`);
             }
         }
 
+        // ===== DEBUG FUNCTIONS =====
+        function checkSessionStatus() {
+            const debugDiv = document.getElementById('debugStatus');
+            
+            const status = {
+                'Session ID': sessionId || 'None',
+                'Access Token': accessToken ? 'Present (' + accessToken.substring(0, 20) + '...)' : 'None',
+                'Token Expiry': tokenExpiry ? new Date(tokenExpiry).toLocaleString() : 'None',
+                'Time Until Expiry': tokenExpiry ? Math.round((tokenExpiry - Date.now()) / 60000) + ' minutes' : 'N/A',
+                'Signed In': isSignedIn ? 'Yes' : 'No',
+                'Worker URL': WORKER_URL,
+                'Has Client Secret': CLIENT_SECRET ? 'Yes' : 'No',
+                'Persistent Sessions': (sessionId && CLIENT_SECRET) ? 'Enabled ✓' : 'Disabled'
+            };
+            
+            let html = '<strong>Session Status:</strong><br>';
+            for (const [key, value] of Object.entries(status)) {
+                html += `${key}: ${value}<br>`;
+            }
+            
+            debugDiv.innerHTML = html;
+            console.log('=== SESSION STATUS ===', status);
+        }
+
+        function testTokenRefresh() {
+            const debugDiv = document.getElementById('debugStatus');
+            
+            if (!sessionId) {
+                debugDiv.innerHTML = '<span style="color: #cc6666;">Error: No session ID. Connect to Drive first with Client Secret configured.</span>';
+                return;
+            }
+            
+            debugDiv.innerHTML = 'Testing token refresh via Worker...<br>';
+            console.log('Manual token refresh test started');
+            
+            refreshAccessToken().then(success => {
+                if (success) {
+                    const msg = '<span style="color: #66cc66;">✓ Token refresh successful!</span><br>' +
+                                'New token expires: ' + new Date(tokenExpiry).toLocaleString() + '<br>' +
+                                'This proves persistent sessions are working.';
+                    debugDiv.innerHTML = msg;
+                    console.log('Token refresh test: SUCCESS');
+                } else {
+                    const msg = '<span style="color: #cc6666;">✗ Token refresh failed</span><br>' +
+                                'Check console for errors. Your session may have expired.';
+                    debugDiv.innerHTML = msg;
+                    console.log('Token refresh test: FAILED');
+                }
+            });
+        }
+
+        function forceTokenExpiry() {
+            if (!isSignedIn) {
+                alert('Not signed in. Connect to Drive first.');
+                return;
+            }
+            
+            if (!sessionId) {
+                alert('No session ID. You need to connect with Client Secret configured for this test to be meaningful.');
+                return;
+            }
+            
+            const debugDiv = document.getElementById('debugStatus');
+            
+            // Set token to expire in 30 seconds
+            tokenExpiry = Date.now() + (30 * 1000);
+            localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
+            
+            debugDiv.innerHTML = '<span style="color: #ccaa66;">Token forced to expire in 30 seconds.</span><br>' +
+                                'Wait 30 seconds, then trigger a backup to test auto-refresh.<br>' +
+                                'Watch the console for "Refreshing access token via Cloudflare Worker..."';
+            
+            console.log('Token expiry forced to:', new Date(tokenExpiry).toLocaleString());
+            console.log('In 30 seconds, the next backup will trigger an automatic token refresh');
+        }
+
         // ===== BACKUP TIMER FUNCTIONS =====
         function startBackupTimer() {
             if (!isSignedIn || !TARGET_FOLDER_ID) return;
@@ -1130,23 +1216,20 @@ Check console (F12) for full details.`);
         }
 
         function refreshAccessToken() {
-            if (!sessionId || !CLIENT_SECRET || !WORKER_URL || WORKER_URL.includes('your-worker')) {
-                console.log('Cannot refresh: missing sessionId, CLIENT_SECRET, or valid WORKER_URL');
+            if (!sessionId || !WORKER_URL || WORKER_URL.includes('your-worker')) {
+                console.log('Cannot refresh: missing sessionId or valid WORKER_URL');
                 return Promise.resolve(false);
             }
             
             console.log('Refreshing access token via Cloudflare Worker...');
             
-            return fetch(WORKER_URL, {
+            return fetch(`${WORKER_URL}/auth/refresh`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    action: 'refresh',
-                    sessionId: sessionId,
-                    clientId: CLIENT_ID,
-                    clientSecret: CLIENT_SECRET
+                    session_id: sessionId
                 })
             })
             .then(response => {
@@ -1163,7 +1246,7 @@ Check console (F12) for full details.`);
                 
                 if (data.access_token) {
                     accessToken = data.access_token;
-                    tokenExpiry = Date.now() + (3600 * 1000);
+                    tokenExpiry = Date.now() + ((data.expires_in || 3600) * 1000);
                     
                     localStorage.setItem('focusWriterAccessToken', accessToken);
                     localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
@@ -1618,11 +1701,6 @@ Check console (F12) for full details.`);
                 return;
             }
             
-            if (window.location.protocol === 'file:') {
-                updateDriveStatus('Must run from HTTP server, not file://');
-                return;
-            }
-            
             if (typeof google === 'undefined') {
                 updateDriveStatus('Google Identity Services not loaded. Try refreshing the page.');
                 return;
@@ -1630,23 +1708,23 @@ Check console (F12) for full details.`);
             
             updateDriveStatus('Connecting...');
             
-            // If we have CLIENT_SECRET, use OAuth flow that provides refresh tokens
+            // If we have CLIENT_SECRET and Worker, use server-side OAuth
             if (CLIENT_SECRET && WORKER_URL && !WORKER_URL.includes('your-worker')) {
-                const redirectUri = window.location.origin + window.location.pathname;
-                const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-                    `client_id=${CLIENT_ID}` +
-                    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-                    `&response_type=code` +
-                    `&scope=${encodeURIComponent(SCOPES)}` +
-                    `&access_type=offline` +
-                    `&prompt=consent`;
+                console.log('Using server-side OAuth flow');
+                const state = crypto.randomUUID();
+                localStorage.setItem('focusWriterOAuthState', state);
                 
-                console.log('Using OAuth flow with refresh tokens');
+                const authUrl = `${WORKER_URL}/auth/start?` +
+                    `client_id=${encodeURIComponent(CLIENT_ID)}` +
+                    `&client_secret=${encodeURIComponent(CLIENT_SECRET)}` +
+                    `&state=${state}`;
+                
                 window.location.href = authUrl;
                 return;
             }
             
             // Otherwise use token-only flow (1 hour sessions)
+            console.log('Using token-only flow (1 hour sessions)');
             try {
                 const client = google.accounts.oauth2.initTokenClient({
                     client_id: CLIENT_ID,
@@ -1675,7 +1753,7 @@ Check console (F12) for full details.`);
                                 if (!TARGET_FOLDER_ID) {
                                     showSetupWizardStep2();
                                 } else {
-                                    updateDriveStatus('Connected to Google Drive! Loading document...');
+                                    updateDriveStatus('Connected to Google Drive!');
                                     
                                     setTimeout(() => {
                                         loadFromGoogleDrive();
@@ -2044,66 +2122,42 @@ Check console (F12) for full details.`);
         // ===== INITIALIZATION =====
         console.log('Initializing Focus Writer...');
         
-        // Check if we're returning from OAuth redirect
+        // Check if we're returning from Worker OAuth callback
         const urlParams = new URLSearchParams(window.location.search);
-        const authCode = urlParams.get('code');
+        const sessionIdParam = urlParams.get('session_id');
+        const accessTokenParam = urlParams.get('access_token');
+        const expiresInParam = urlParams.get('expires_in');
+        const errorParam = urlParams.get('error');
+        const oauthState = localStorage.getItem('focusWriterOAuthState');
         
-        if (authCode && CLIENT_SECRET && WORKER_URL && !WORKER_URL.includes('your-worker')) {
-            console.log('Processing OAuth callback...');
-            updateDriveStatus('Completing authentication...');
+        if (errorParam) {
+            console.error('OAuth error:', errorParam);
+            updateDriveStatus('Authentication failed: ' + errorParam);
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (sessionIdParam && accessTokenParam && oauthState) {
+            console.log('Processing OAuth callback from Worker...');
             
-            // Exchange code for tokens
-            fetch('https://oauth2.googleapis.com/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    code: authCode,
-                    client_id: CLIENT_ID,
-                    client_secret: CLIENT_SECRET,
-                    redirect_uri: window.location.origin + window.location.pathname,
-                    grant_type: 'authorization_code'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error_description || data.error);
-                }
-                
-                accessToken = data.access_token;
-                tokenExpiry = Date.now() + (data.expires_in * 1000);
-                isSignedIn = true;
-                
-                localStorage.setItem('focusWriterAccessToken', accessToken);
-                localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
-                
-                if (data.refresh_token) {
-                    console.log('Got refresh token, storing in Worker...');
-                    return fetch(WORKER_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'store',
-                            refresh_token: data.refresh_token,
-                            clientId: CLIENT_ID,
-                            clientSecret: CLIENT_SECRET
-                        })
-                    }).then(r => r.json());
-                }
-                return null;
-            })
-            .then(workerData => {
-                if (workerData && workerData.sessionId) {
-                    sessionId = workerData.sessionId;
-                    localStorage.setItem('focusWriterSessionId', sessionId);
-                    console.log('Persistent session established!');
-                }
-                
-                // Clean up URL
-                window.history.replaceState({}, document.title, window.location.pathname);
-                
-                // Initialize Drive
-                updateDriveUI();
+            // Clear state
+            localStorage.removeItem('focusWriterOAuthState');
+            
+            // Store session and tokens
+            sessionId = sessionIdParam;
+            accessToken = accessTokenParam;
+            tokenExpiry = Date.now() + (parseInt(expiresInParam || '3600') * 1000);
+            isSignedIn = true;
+            
+            localStorage.setItem('focusWriterSessionId', sessionId);
+            localStorage.setItem('focusWriterAccessToken', accessToken);
+            localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
+            
+            console.log('Persistent session established!');
+            
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Initialize Drive
+            updateDriveUI();
+            if (CLIENT_ID && API_KEY) {
                 loadGAPI().then(() => {
                     gapi.client.setToken({access_token: accessToken});
                     isGoogleDriveLoaded = true;
@@ -2115,13 +2169,10 @@ Check console (F12) for full details.`);
                         loadFromGoogleDrive();
                         setTimeout(() => startBackupTimer(), 2000);
                     }
+                }).catch(error => {
+                    console.error('GAPI initialization error:', error);
                 });
-            })
-            .catch(error => {
-                console.error('OAuth error:', error);
-                updateDriveStatus('Authentication failed: ' + error.message);
-                window.history.replaceState({}, document.title, window.location.pathname);
-            });
+            }
         }
         
         loadSavedContent();
