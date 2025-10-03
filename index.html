@@ -1328,26 +1328,23 @@
                     if (selectedText) {
                         // Wrap selected text in brackets with spaces
                         const newText = `[ ${selectedText} ]`;
-                        range.deleteContents();
-                        const textNode = document.createTextNode(newText);
-                        range.insertNode(textNode);
-                        
-                        // Set cursor after the closing bracket
-                        range.setStartAfter(textNode);
-                        range.setEndAfter(textNode);
-                        selection.removeAllRanges();
-                        selection.addRange(range);
+                        document.execCommand('insertText', false, newText);
                     } else {
-                        // Insert the full bracket text with spaces
-                        const fullText = document.createTextNode('[\u00A0\u00A0]'); // Using non-breaking spaces
-                        range.insertNode(fullText);
+                        // Insert brackets with non-breaking spaces
+                        document.execCommand('insertText', false, '[\u00A0\u00A0]');
                         
-                        // Position cursor at index 2 (between the two spaces)
-                        const newRange = document.createRange();
-                        newRange.setStart(fullText, 2);
-                        newRange.setEnd(fullText, 2);
-                        selection.removeAllRanges();
-                        selection.addRange(newRange);
+                        // Move cursor back 2 positions to be between the spaces
+                        const sel = window.getSelection();
+                        if (sel.rangeCount > 0) {
+                            const range = sel.getRangeAt(0);
+                            const textNode = range.startContainer;
+                            if (textNode.nodeType === 3) { // Text node
+                                range.setStart(textNode, range.startOffset - 2);
+                                range.setEnd(textNode, range.startOffset);
+                                sel.removeAllRanges();
+                                sel.addRange(range);
+                            }
+                        }
                     }
                     break;
             }
