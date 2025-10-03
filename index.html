@@ -1015,6 +1015,12 @@
         let floatingToolbar = null;
         let lastSelection = null;
 
+        // Goal tracking variables
+        let dailyWordGoal = parseInt(localStorage.getItem('focusWriterDailyGoal')) || 0;
+        let todayWordCount = parseInt(localStorage.getItem('focusWriterTodayCount')) || 0;
+        let sessionStartWords = parseInt(localStorage.getItem('focusWriterSessionStart')) || 0;
+        let lastResetDate = localStorage.getItem('focusWriterLastReset') || new Date().toDateString();
+
         function toggleMenu() {
             isMenuOpen = !isMenuOpen;
             menuPanel.classList.toggle('open', isMenuOpen);
