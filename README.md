@@ -1,4 +1,4 @@
-# Focus Writer
+# Big Cat Mellow Writer
 
 A distraction-free writing application with smart productivity features and cloud backup.
 
