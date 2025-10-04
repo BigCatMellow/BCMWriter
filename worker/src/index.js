@@ -13,6 +13,82 @@ export default {
       });
     }
 
+    // ===== GITHUB OAUTH ENDPOINTS =====
+    
+    // Route: Initiate GitHub OAuth flow
+    if (url.pathname === '/auth/github/login' && request.method === 'GET') {
+      const state = url.searchParams.get('state');
+      
+      const githubAuthUrl = `https://github.com/login/oauth/authorize?` +
+        `client_id=${env.GITHUB_CLIENT_ID}` +
+        `&scope=gist` +
+        `&state=${state}`;
+      
+      return Response.redirect(githubAuthUrl, 302);
+    }
+
+    // Route: Handle GitHub OAuth callback
+    if (url.pathname === '/auth/github/callback' && request.method === 'GET') {
+      const code = url.searchParams.get('code');
+      const state = url.searchParams.get('state');
+      const error = url.searchParams.get('error');
+
+      if (error) {
+        return redirectToApp({ error: error });
+      }
+
+      if (!code) {
+        return redirectToApp({ error: 'no_code' });
+      }
+
+      try {
+        // Exchange code for access token
+        const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            client_id: env.GITHUB_CLIENT_ID,
+            client_secret: env.GITHUB_CLIENT_SECRET,
+            code: code,
+          }),
+        });
+
+        const tokenData = await tokenResponse.json();
+
+        if (tokenData.error) {
+          return redirectToApp({ error: tokenData.error });
+        }
+
+        const accessToken = tokenData.access_token;
+
+        // Get user info
+        const userResponse = await fetch('https://api.github.com/user', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/vnd.github+json',
+          },
+        });
+
+        const userData = await userResponse.json();
+
+        // Redirect back to app with token and username
+        return redirectToApp({
+          github_token: accessToken,
+          github_username: userData.login,
+          state: state
+        });
+
+      } catch (error) {
+        console.error('GitHub OAuth error:', error);
+        return redirectToApp({ error: 'oauth_failed' });
+      }
+    }
+
+    // ===== GOOGLE OAUTH ENDPOINTS (Your existing code) =====
+    
     // Route: Initiate OAuth flow
     if (url.pathname === '/auth/start' && request.method === 'GET') {
       const clientId = url.searchParams.get('client_id');
