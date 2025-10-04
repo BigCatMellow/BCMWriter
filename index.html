@@ -36,15 +36,16 @@
             margin-left: 350px;
         }
 
-        .editor-container {
-            width: min(800px, 90vw);
-            height: 80vh;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
+.editor-container {
+    width: min(800px, 90vw);
+    height: 80vh;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    position: relative;  /* Add this line */
+}
 
         .editor {
             width: 100%;
@@ -785,6 +786,27 @@
             background: #3a3a3a;
             margin: 0 4px;
         }
+		
+		.goal-countdown {
+    position: absolute;
+    bottom: 15px;
+    right: 20px;
+    font-size: 13px;
+    color: #666666;
+    font-weight: 400;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.goal-countdown.active {
+    opacity: 1;
+}
+
+.goal-countdown.complete {
+    opacity: 0;
+}
 
         @media (max-width: 768px) {
             .writing-area {
@@ -834,17 +856,21 @@
             .setup-button-group button {
                 width: 100%;
             }
+			
+			
         }
     </style>
 </head>
 <body>
     <div class="writing-area" id="writingArea">
-        <div class="editor-container">
-            <div class="editor" 
-                 contenteditable="true" 
-                 id="editor"
-                 placeholder="Start writing...">
-            </div>
+<div class="editor-container">
+    <div class="editor" 
+         contenteditable="true" 
+         id="editor"
+         placeholder="Start writing...">
+    </div>
+    <div class="goal-countdown" id="goalCountdown">500 remaining</div>
+</div>
         </div>
     </div>
 
@@ -975,6 +1001,14 @@
              placeholder="Pure focus. Just you and your words.">
         </div>
     </div>
+	
+	<div class="goal-progress-float" id="goalProgressFloat">
+    <span class="goal-progress-number" id="goalProgressNumber">0</span>
+    <span class="goal-progress-label" id="goalProgressLabel">remaining</span>
+    <div class="goal-progress-bar-container">
+        <div class="goal-progress-bar" id="goalProgressBar"></div>
+    </div>
+</div>
 
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -1268,6 +1302,27 @@
             const todayStatItem = document.getElementById('todayStatItem');
             const todayNumber = document.getElementById('todayNumber');
             const todaySubtext = document.getElementById('todaySubtext');
+			
+// Update in-editor countdown
+const goalCountdown = document.getElementById('goalCountdown');
+
+if (dailyWordGoal > 0 && !isInFocusMode) {
+    const remaining = Math.max(0, dailyWordGoal - todayWordCount);
+    const isComplete = todayWordCount >= dailyWordGoal;
+    
+    if (!isComplete) {
+        goalCountdown.textContent = `${remaining.toLocaleString()}`;
+        goalCountdown.classList.add('active');
+        goalCountdown.classList.remove('complete');
+    } else {
+        goalCountdown.classList.add('complete');
+        setTimeout(() => {
+            goalCountdown.classList.remove('active');
+        }, 300);
+    }
+} else {
+    goalCountdown.classList.remove('active');
+}
             
             if (dailyWordGoal > 0) {
                 const remaining = Math.max(0, dailyWordGoal - todayWordCount);
