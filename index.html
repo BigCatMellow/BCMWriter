@@ -115,9 +115,13 @@
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            transition: all 0.2s ease;
+            transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease, opacity 0.25s ease;
             opacity: 0.7;
         }
+
+.menu-button.active {
+    left: 286px;  /* 350px (menu width) - 44px (button width) - 20px (margin) */
+}
 
         .menu-button:hover {
             background: #3a3a3a;
@@ -205,6 +209,7 @@
             z-index: 999;
             transition: left 0.3s ease;
             overflow-y: auto;
+			transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .menu-panel.open {
@@ -1333,14 +1338,14 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
                 
                 if (isComplete) {
                     goalNumber.textContent = '✓ Done!';
-                    goalSubtext.textContent = `${dailyWordGoal} words`;
+                    goalSubtext.textContent = `${dailyWordGoal.toLocaleString()} words`;
                 } else {
-                    goalNumber.textContent = remaining;
-                    goalSubtext.textContent = `of ${dailyWordGoal} remaining`;
+                    goalNumber.textContent = remaining.toLocaleString();
+                    goalSubtext.textContent = `of ${dailyWordGoal.toLocaleString()} remaining`;
                 }
                 
                 todayStatItem.style.display = 'block';
-                todayNumber.textContent = todayWordCount;
+                todayNumber.textContent = todayWordCount.toLocaleString();
                 
                 if (isComplete) {
                     todayNumber.classList.add('goal-number');
