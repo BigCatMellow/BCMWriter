@@ -860,7 +860,11 @@
 
     <div class="menu-panel" id="menuPanel">
         <div class="menu-header">
+<<<<<<< HEAD
             <div class="menu-title">Mellow Writer</div>
+=======
+            <div class="menu-title">Mellow Mode</div>
+>>>>>>> 5b118754fa8abdbff71d79d4df164ed91df6e02a
             <div class="menu-subtitle">Distraction-free writing with auto-backup</div>
         </div>
 
@@ -895,6 +899,10 @@
             <div class="menu-buttons">
                 <button class="menu-button-item" onclick="newDocument()">New Document</button>
                 <button class="menu-button-item" onclick="saveDocument()">Download Text</button>
+<<<<<<< HEAD
+=======
+                <button class="menu-button-item" onclick="toggleFocusMode()">Ultra Focus Mode</button>
+>>>>>>> 5b118754fa8abdbff71d79d4df164ed91df6e02a
             </div>
         </div>
 
@@ -1031,6 +1039,7 @@
         let todayWordCount = parseInt(localStorage.getItem('focusWriterTodayCount')) || 0;
         let sessionStartWords = parseInt(localStorage.getItem('focusWriterSessionStart')) || 0;
         let lastResetDate = localStorage.getItem('focusWriterLastReset') || new Date().toDateString();
+<<<<<<< HEAD
 		
 		
 		// GitHub variables
@@ -1042,6 +1051,8 @@ let githubBackupCountdown = null;
 let githubNextBackupTime = null;
 const GITHUB_BACKUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const GITHUB_GIST_FILENAME = 'bcm-writer-backup.txt';
+=======
+>>>>>>> 5b118754fa8abdbff71d79d4df164ed91df6e02a
 
         function toggleMenu() {
             isMenuOpen = !isMenuOpen;
@@ -2627,6 +2638,7 @@ if (githubToken && githubUsername) {
         updateDriveUI();
         updateGoalDisplay();
         currentEditor.focus();
+<<<<<<< HEAD
 		
 		// ===== GITHUB OAUTH FUNCTIONS =====
 
@@ -2875,6 +2887,8 @@ async function loadFromGitHub() {
     }
 }
 
+=======
+>>>>>>> 5b118754fa8abdbff71d79d4df164ed91df6e02a
     </script>
 </body>
 </html>
