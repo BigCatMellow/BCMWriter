@@ -81,10 +81,12 @@ export default {
           state: state
         });
 
-      } catch (error) {
-        console.error('GitHub OAuth error:', error);
-        return redirectToApp({ error: 'oauth_failed' });
-      }
+} catch (error) {
+    console.error('GitHub OAuth error:', error);
+    console.error('Error details:', error.message);
+    console.error('Stack trace:', error.stack);
+    return redirectToApp({ error: 'oauth_failed' });
+}
     }
 
     // ===== GOOGLE OAUTH ENDPOINTS (Your existing code) =====
@@ -237,3 +239,4 @@ function redirectToApp(params) {
   });
   return Response.redirect(url.toString(), 302);
 }
+
