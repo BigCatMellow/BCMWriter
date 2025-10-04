@@ -2574,6 +2574,7 @@ const GITHUB_GIST_FILENAME = 'bcm-writer-backup.txt';
         
 		// Handle GitHub OAuth callback
 // Handle GitHub OAuth callback
+// Handle GitHub OAuth callback
 const githubTokenParam = urlParams.get('github_token');
 const githubUsernameParam = urlParams.get('github_username');
 const githubStateParam = urlParams.get('state');
@@ -2584,9 +2585,6 @@ if (githubTokenParam && githubUsernameParam && githubStateParam === savedGithubS
     
     githubToken = githubTokenParam;
     githubUsername = githubUsernameParam;
-
-if (githubTokenParam && githubUsernameParam && githubStateParam === savedGithubState) {
-    localStorage.removeItem('focusWriterGitHubState');
     
     localStorage.setItem('focusWriterGitHubToken', githubToken);
     localStorage.setItem('focusWriterGitHubUsername', githubUsername);
@@ -2600,6 +2598,13 @@ if (githubTokenParam && githubUsernameParam && githubStateParam === savedGithubS
         loadFromGitHub();
         setTimeout(() => startGitHubBackupTimer(), 2000);
     }, 1000);
+}
+
+// Restore GitHub session on page load
+if (githubToken && githubUsername) {
+    updateGitHubUI();
+    updateGitHubStatus(`Connected as @${githubUsername}. Auto-backup active.`);
+    startGitHubBackupTimer();
 }
 
 // Restore GitHub session on page load
