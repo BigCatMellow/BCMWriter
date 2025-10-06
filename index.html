@@ -1582,53 +1582,49 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
         }
 
         function refreshAccessToken() {
-            if (!sessionId || !WORKER_URL || WORKER_URL.includes('your-worker')) {
-                return Promise.resolve(false);
-            }
-            
-            return fetch(`${WORKER_URL}/auth/refresh`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    session_id: sessionId
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Worker returned ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.error) {
-                    console.error('Worker error:', data.error);
-                    return false;
-                }
-                
-                if (data.access_token) {
-                    accessToken = data.access_token;
-                    tokenExpiry = Date.now() + ((data.expires_in || 3600) * 1000);
-                    
-                    localStorage.setItem('focusWriterAccessToken', accessToken);
-                    localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
-                    
-                    if (isGoogleDriveLoaded && typeof gapi !== 'undefined') {
-                        gapi.client.setToken({access_token: accessToken});
-                    }
-                    
-                    updateDriveStatus('Session refreshed. Connected to Google Drive.');
-                    return true;
-                }
-                
-                return false;
-            })
-            .catch(error => {
-                console.error('Token refresh failed:', error);
-                return false;
-            });
+    if (!sessionId || !WORKER_URL || WORKER_URL.includes('your-worker')) {
+        console.error('Cannot refresh: missing session ID or worker URL');
+        return Promise.resolve(false);
+    }
+    
+    return fetch(`${WORKER_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            session_id: sessionId
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Worker returned ${response.status}`);
         }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            console.error('Worker error:', data.error);
+            return false;
+        }
+        
+        if (data.access_token) {
+            accessToken = data.access_token;
+            tokenExpiry = Date.now() + ((data.expires_in || 3600) * 1000);
+            
+            localStorage.setItem('focusWriterAccessToken', accessToken);
+            localStorage.setItem('focusWriterTokenExpiry', tokenExpiry.toString());
+            
+            return true;
+        }
+        
+        return false;
+    })
+    .catch(error => {
+        console.error('Token refresh failed:', error);
+        return false;
+    });
+}
 
         function storeRefreshToken(authCode) {
             if (!CLIENT_SECRET || !WORKER_URL || WORKER_URL.includes('your-worker')) {
@@ -2544,88 +2540,109 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
             }
         }
         
-        loadSavedContent();
+        // Initialize on page load
+loadSavedContent();
+
+const storedToken = localStorage.getItem('focusWriterAccessToken');
+const storedExpiry = localStorage.getItem('focusWriterTokenExpiry');
+const storedSession = localStorage.getItem('focusWriterSessionId');
+
+// Check if we have credentials configured
+if (CLIENT_ID && API_KEY) {
+    // If we have a valid token, use it
+    if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+        accessToken = storedToken;
+        tokenExpiry = parseInt(storedExpiry);
+        sessionId = storedSession;
+        isSignedIn = true;
         
-        const storedToken = localStorage.getItem('focusWriterAccessToken');
-        const storedExpiry = localStorage.getItem('focusWriterTokenExpiry');
-        const storedSession = localStorage.getItem('focusWriterSessionId');
-        
-        if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
-            accessToken = storedToken;
-            tokenExpiry = parseInt(storedExpiry);
-            sessionId = storedSession;
-            isSignedIn = true;
+        loadGAPI().then(() => {
+            gapi.client.setToken({access_token: accessToken});
+            isGoogleDriveLoaded = true;
+            updateDriveUI();
             
-            if (CLIENT_ID && API_KEY) {
+            if (TARGET_FOLDER_ID) {
+                updateDriveStatus('Connected to Google Drive. Persistent session active.');
+                startBackupTimer();
+            } else {
+                updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
+            }
+        }).catch(error => {
+            console.error('Error initializing GAPI:', error);
+        });
+    } 
+    // If token expired but we have a session, try to refresh
+    else if (storedSession && CLIENT_SECRET && WORKER_URL && !WORKER_URL.includes('your-worker')) {
+        sessionId = storedSession;
+        updateDriveStatus('Restoring session...');
+        
+        refreshAccessToken().then(refreshed => {
+            if (refreshed) {
+                isSignedIn = true;
+                
                 loadGAPI().then(() => {
                     gapi.client.setToken({access_token: accessToken});
                     isGoogleDriveLoaded = true;
                     updateDriveUI();
                     
                     if (TARGET_FOLDER_ID) {
-                        const timeLeft = Math.round((tokenExpiry - Date.now()) / 60000);
-                        if (sessionId && CLIENT_SECRET) {
-                            updateDriveStatus('Connected to Google Drive. Persistent session active.');
-                        } else {
-                            updateDriveStatus(`Connected to Google Drive. Token expires in ${timeLeft} minutes.`);
-                        }
+                        updateDriveStatus('Connected to Google Drive. Session restored successfully.');
                         startBackupTimer();
                     } else {
                         updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
                     }
                 }).catch(error => {
                     console.error('Error initializing GAPI:', error);
+                    updateDriveStatus('Session restored but Drive initialization failed.');
                 });
-            }
-        } else {
-            if (storedToken) {
+            } else {
+                // Refresh failed, clear everything
+                localStorage.removeItem('focusWriterSessionId');
                 localStorage.removeItem('focusWriterAccessToken');
                 localStorage.removeItem('focusWriterTokenExpiry');
-                
-                if (storedSession && CLIENT_SECRET && WORKER_URL && !WORKER_URL.includes('your-worker')) {
-                    sessionId = storedSession;
-                    refreshAccessToken().then(refreshed => {
-                        if (refreshed) {
-                            isSignedIn = true;
-                            
-                            if (CLIENT_ID && API_KEY) {
-                                loadGAPI().then(() => {
-                                    gapi.client.setToken({access_token: accessToken});
-                                    isGoogleDriveLoaded = true;
-                                    updateDriveUI();
-                                    
-                                    if (TARGET_FOLDER_ID) {
-                                        updateDriveStatus('Connected to Google Drive. Session restored.');
-                                        startBackupTimer();
-                                    }
-                                });
-                            }
-                        } else {
-                            localStorage.removeItem('focusWriterSessionId');
-                            sessionId = null;
-                        }
-                    });
-                }
+                sessionId = null;
+                accessToken = null;
+                tokenExpiry = null;
+                isSignedIn = false;
+                updateDriveUI();
+                updateDriveStatus('Session expired. Please reconnect to Google Drive.');
             }
+        }).catch(error => {
+            console.error('Session refresh error:', error);
+            updateDriveStatus('Session refresh failed. Please reconnect.');
+        });
+    }
+    // No valid session or token
+    else {
+        if (storedToken || storedSession) {
+            // Clean up invalid tokens
+            localStorage.removeItem('focusWriterAccessToken');
+            localStorage.removeItem('focusWriterTokenExpiry');
         }
-        
-        if (!localStorage.getItem('focusWriterContent')) {
-            currentEditor.innerHTML = '<br><br>';
-            focusEditor.innerHTML = '<br><br>';
-            
-            const range = document.createRange();
-            const selection = window.getSelection();
-            range.setStart(currentEditor, 2);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }
-        
-        updateStats();
-        showSaveStatus('saved');
         updateDriveUI();
-        updateGoalDisplay();
-        currentEditor.focus();
+    }
+} else {
+    // No credentials configured
+    updateDriveUI();
+}
+
+if (!localStorage.getItem('focusWriterContent')) {
+    currentEditor.innerHTML = '<br><br>';
+    focusEditor.innerHTML = '<br><br>';
+    
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.setStart(currentEditor, 2);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+
+updateStats();
+showSaveStatus('saved');
+updateDriveUI();
+updateGoalDisplay();
+currentEditor.focus();
     </script>
 </body>
 </html>
