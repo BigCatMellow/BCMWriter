@@ -1084,16 +1084,16 @@
         const overlay = document.getElementById('overlay');
         const writingArea = document.getElementById('writingArea');
 
-        let isGoogleDriveLoaded = false;
-        let isSignedIn = false;
-        let accessToken = null;
-        let tokenExpiry = null;
-        let currentFileId = null;
-        let sessionId = localStorage.getItem('focusWriterSessionId') || null;
-        let CLIENT_ID = localStorage.getItem('focusWriterClientId') || null;
-        let API_KEY = localStorage.getItem('focusWriterApiKey') || null;
-        let CLIENT_SECRET = localStorage.getItem('focusWriterClientSecret') || null;
-        let TARGET_FOLDER_ID = localStorage.getItem('focusWriterFolderId') || null;
+let isGoogleDriveLoaded = false;
+let isSignedIn = false;
+let accessToken = null;
+let tokenExpiry = null;
+let currentFileId = null;
+let sessionId = localStorage.getItem('focusWriterSessionId') || null;
+let CLIENT_ID = localStorage.getItem('focusWriterClientId') || null;
+let API_KEY = localStorage.getItem('focusWriterApiKey') || null;
+let CLIENT_SECRET = localStorage.getItem('focusWriterClientSecret') || null;
+let TARGET_FOLDER_ID = localStorage.getItem('focusWriterFolderId') || null;
         
         const WORKER_URL = 'https://bcmwriter.goldenjanitors.workers.dev';
         const SCOPES = 'https://www.googleapis.com/auth/drive';
