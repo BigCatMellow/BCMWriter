@@ -2086,10 +2086,8 @@ function connectGoogleDrive() {
   const authUrl = `${WORKER_URL}/auth/start?client_id=${encodeURIComponent(CLIENT_ID)}&state=${state}`;
   window.location.href = authUrl;
 }
-            
-            
 
-        function disconnectGoogleDrive() {
+function disconnectGoogleDrive() {
             if (accessToken) {
                 google.accounts.oauth2.revoke(accessToken, () => {});
             }
