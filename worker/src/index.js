@@ -1,5 +1,51 @@
-export default {
-  async fetch(request, env) {
+// --- CORS helpers injected ---
+const ALLOWED_ORIGINS = new Set([
+  'https://bigcatmellow.github.io',
+  'http://localhost:8000',
+  'http://127.0.0.1:8000',
+]);
+
+function corsPreflight(request) {
+  const origin = request.headers.get('Origin') || '';
+  const headers = {
+    'Vary': 'Origin',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, PATCH, DELETE',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+  if (ALLOWED_ORIGINS.has(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  return new Response(null, { headers });
+}
+
+function withCors(handler) {
+  return async (request, env, ctx) => {
+    if (request.method === 'OPTIONS') {
+      return corsPreflight(request);
+    }
+    const resp = await handler(request, env, ctx);
+    try {
+      const origin = request.headers.get('Origin') || '';
+      if (ALLOWED_ORIGINS.has(origin)) {
+        resp.headers.set('Access-Control-Allow-Origin', origin);
+        resp.headers.set('Vary', 'Origin');
+      }
+    } catch (_) {
+      // if resp is not a Response, wrap it
+      const origin = request.headers.get('Origin') || '';
+      const headers = {};
+      if (ALLOWED_ORIGINS.has(origin)) {
+        headers['Access-Control-Allow-Origin'] = origin;
+        headers['Vary'] = 'Origin';
+      }
+      return new Response(String(resp), { headers });
+    }
+    return resp;
+  };
+}
+// --- end CORS helpers ---
+
+export default { fetch: withCors(async (request, env) {
     const url = new URL(request.url);
     
     // Handle CORS preflight
