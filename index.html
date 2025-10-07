@@ -863,6 +863,52 @@
 			
 			
         }
+		
+		
+		.goal-progress-float {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    padding: 12px 16px;
+    border-radius: 6px;
+    display: none;
+    z-index: 1000;
+}
+
+.goal-progress-float.active {
+    display: block;
+}
+
+.goal-progress-number {
+    font-size: 24px;
+    font-weight: 600;
+    color: #66cc66;
+    display: block;
+}
+
+.goal-progress-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.goal-progress-bar-container {
+    width: 100%;
+    height: 4px;
+    background: #3a3a3a;
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.goal-progress-bar {
+    height: 100%;
+    background: #66cc66;
+    width: 0%;
+    transition: width 0.3s ease;
+}
     </style>
 </head>
 <body>
@@ -1017,6 +1063,15 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <script>
+	
+	try {
+    loadSavedContent();
+} catch (error) {
+    console.error('Error loading saved content:', error);
+    updateDriveStatus('Error loading saved content. Starting fresh.');
+}
+	
+	
         let currentEditor = document.getElementById('editor');
         let focusEditor = document.getElementById('focusEditor');
         let isInFocusMode = false;
@@ -1037,7 +1092,7 @@
         let sessionId = localStorage.getItem('focusWriterSessionId') || null;
         let CLIENT_ID = localStorage.getItem('focusWriterClientId') || null;
         let API_KEY = localStorage.getItem('focusWriterApiKey') || null;
-        let  = localStorage.getItem('focusWriterClientSecret') || null;
+        let CLIENT_SECRET = localStorage.getItem('focusWriterClientSecret') || null;
         let TARGET_FOLDER_ID = localStorage.getItem('focusWriterFolderId') || null;
         
         const WORKER_URL = 'https://bcmwriter.goldenjanitors.workers.dev';
@@ -1625,7 +1680,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
     });
 }
 
-        function storeRefreshToken(authCode) {
+function storeRefreshToken(authCode) {
   return fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1638,19 +1693,12 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
   })
   .then(r => r.json())
   .then(data => {
-    if (data.error) {
-      console.error('Token exchange error:', data.error);
-      return;
-    }
+    if (data.error) { console.error('Token exchange error:', data.error); return; }
     if (data.refresh_token) {
       return fetch(WORKER_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'store',
-          refresh_token: data.refresh_token,
-          clientId: CLIENT_ID
-        })
+        body: JSON.stringify({ action: 'store', refresh_token: data.refresh_token, clientId: CLIENT_ID })
       })
       .then(r => r.json())
       .then(res => {
@@ -1664,6 +1712,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
   })
   .catch(err => console.error('Error storing refresh token:', err));
 }
+
 
         function setupOrConnect() {
             if (!CLIENT_ID || !API_KEY) {
@@ -1680,7 +1729,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
         function showSetupWizardStep1() {
             const currentClientId = CLIENT_ID || '';
             const currentApiKey = API_KEY || '';
-            const currentClientSecret =  || '';
+            const currentClientSecret = CLIENT_SECRET || '';
             
             const wizardHTML = `
                 <h4>Step 1: Google Cloud Setup</h4>
@@ -1771,6 +1820,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
             const clientId = document.getElementById('clientIdInput').value.trim();
             const apiKey = document.getElementById('apiKeyInput').value.trim();
             const clientSecret = document.getElementById('clientSecretInput').value.trim();
+
             
             if (!clientId || !apiKey) {
                 alert('Please enter both Client ID and API Key');
@@ -1779,12 +1829,12 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
             
             CLIENT_ID = clientId;
             API_KEY = apiKey;
-             = clientSecret;
+            CLIENT_SECRET = clientSecret;
             
             localStorage.setItem('focusWriterClientId', CLIENT_ID);
             localStorage.setItem('focusWriterApiKey', API_KEY);
-            if () {
-                localStorage.setItem('focusWriterClientSecret', );
+            if (CLIENT_SECRET) {
+                localStorage.setItem('focusWriterClientSecret', CLIENT_SECRET);
             }
             
             updateDriveUI();
@@ -1974,7 +2024,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
                 localStorage.removeItem('focusWriterAccessToken');
                 localStorage.removeItem('focusWriterTokenExpiry');
                 CLIENT_ID = null;
-                 = null;
+                CLIENT_SECRET = null;
                 API_KEY = null;
                 TARGET_FOLDER_ID = null;
                 sessionId = null;
@@ -2028,19 +2078,14 @@ function connectGoogleDrive() {
     showSetupWizardStep1();
     return;
   }
-  if (typeof google === 'undefined') {
-    updateDriveStatus('Google Identity Services not loaded. Try refreshing the page.');
-    return;
-  }
 
   updateDriveStatus('Connecting...');
   const state = crypto.randomUUID();
   localStorage.setItem('focusWriterOAuthState', state);
 
-  const authUrl =
-    `${WORKER_URL}/auth/start?client_id=${encodeURIComponent(CLIENT_ID)}&state=${state}`;
-
+  const authUrl = `${WORKER_URL}/auth/start?client_id=${encodeURIComponent(CLIENT_ID)}&state=${state}`;
   window.location.href = authUrl;
+}
             
             try {
                 const client = google.accounts.oauth2.initTokenClient({
@@ -2555,7 +2600,7 @@ if (CLIENT_ID && API_KEY) {
         });
     } 
     // If token expired but we have a session, try to refresh
-    else if (storedSession &&  && WORKER_URL && !WORKER_URL.includes('your-worker')) {
+    else if (storedSession && CLIENT_SECRET) {
         sessionId = storedSession;
         updateDriveStatus('Restoring session...');
         
@@ -2626,6 +2671,28 @@ showSaveStatus('saved');
 updateDriveUI();
 updateGoalDisplay();
 currentEditor.focus();
+
+// Make functions globally accessible for onclick handlers
+window.setupOrConnect = setupOrConnect;
+window.selectBackupFolder = selectBackupFolder;
+window.loadFromGoogleDrive = loadFromGoogleDrive;
+window.manualBackup = manualBackup;
+window.clearGoogleCredentials = clearGoogleCredentials;
+window.disconnectGoogleDrive = disconnectGoogleDrive;
+window.newDocument = newDocument;
+window.saveDocument = saveDocument;
+window.toggleFocusMode = toggleFocusMode;
+window.closeSetupModal = closeSetupModal;
+window.showDetailedSetupInstructions = showDetailedSetupInstructions;
+window.saveCredentialsAndContinue = saveCredentialsAndContinue;
+window.skipSetup = skipSetup;
+window.showSetupWizardStep1 = showSetupWizardStep1;
+window.showSetupWizardStep2 = showSetupWizardStep2;
+window.showExistingFolderInstructions = showExistingFolderInstructions;
+window.saveExistingFolder = saveExistingFolder;
+window.createBackupFolder = createBackupFolder;
+window.closeSetupAndStartWriting = closeSetupAndStartWriting;
+window.applyMarkdown = applyMarkdown;
     </script>
 </body>
 </html>
