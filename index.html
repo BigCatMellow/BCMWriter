@@ -2087,57 +2087,7 @@ function connectGoogleDrive() {
   window.location.href = authUrl;
 }
             
-            try {
-                const client = google.accounts.oauth2.initTokenClient({
-                    client_id: CLIENT_ID,
-                    scope: SCOPES,
-                    callback: (response) => {
-                        if (response.error) {
-                            console.error('OAuth error:', response.error);
-                            updateDriveStatus('Authentication failed: ' + response.error);
-                            return;
-                        }
-                        
-                        if (response.access_token) {
-                            accessToken = response.access_token;
-                            tokenExpiry = Date.now() + (3600 * 1000);
-                            isSignedIn = true;
-                            
-                            localStorage.setItem('focusWriterAccessToken', accessToken);
-                            localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
-                            
-                            updateDriveUI();
-                            
-                            loadGAPI().then(() => {
-                                gapi.client.setToken({access_token: accessToken});
-                                isGoogleDriveLoaded = true;
-                                
-                                if (!TARGET_FOLDER_ID) {
-                                    showSetupWizardStep2();
-                                } else {
-                                    updateDriveStatus('Connected to Google Drive!');
-                                    
-                                    setTimeout(() => {
-                                        loadFromGoogleDrive();
-                                        setTimeout(() => {
-                                            startBackupTimer();
-                                        }, 3000);
-                                    }, 1000);
-                                }
-                            }).catch(error => {
-                                updateDriveStatus('API initialization failed: ' + error.message);
-                            });
-                        }
-                    },
-                });
-                
-                client.requestAccessToken();
-                
-            } catch (error) {
-                console.error('Connection error:', error);
-                updateDriveStatus('Connection failed: ' + error.message);
-            }
-        }
+            
 
         function disconnectGoogleDrive() {
             if (accessToken) {
