@@ -9,6 +9,7 @@ export default { fetch: withCors(async (request, env, ctx) => {
 
   if (path === "/auth/google/start") return startGoogle(request, env);
   if (path === "/auth/google/callback") return googleCallback(request, env);
+  if (path === "/auth/refresh") return refreshGoogleToken(request, env);
 
   if (path === "/auth/github/start") return startGitHub(request, env);
   if (path === "/auth/github/callback") return githubCallback(request, env);
@@ -151,6 +152,76 @@ async function googleCallback(request, env) {
   const redirect = new URL(target);
   redirect.searchParams.set("session_id", sessionId);
   return Response.redirect(redirect.toString(), 302);
+}
+
+// ---- Google Token Refresh ----
+async function refreshGoogleToken(request, env) {
+  if (request.method !== "POST") {
+    return json({ error: "method_not_allowed" }, 405);
+  }
+
+  try {
+    const body = await request.json();
+    const sessionId = body.session_id;
+
+    if (!sessionId) {
+      return json({ error: "missing_session_id" }, 400);
+    }
+
+    // Get session data
+    const sess = await getSessionData(env, `sess:${sessionId}`);
+    
+    if (!sess) {
+      return json({ error: "invalid_session" }, 401);
+    }
+
+    if (sess.provider !== "google") {
+      return json({ error: "not_google_session" }, 400);
+    }
+
+    const refreshToken = sess.tokens?.refresh_token;
+
+    if (!refreshToken) {
+      return json({ error: "no_refresh_token" }, 401);
+    }
+
+    // Exchange refresh token for new access token
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: env.GOOGLE_CLIENT_ID,
+        client_secret: env.GOOGLE_CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token"
+      })
+    });
+
+    if (!tokenRes.ok) {
+      const errorText = await tokenRes.text();
+      console.error("Token refresh failed:", errorText);
+      return json({ error: "token_refresh_failed" }, 502);
+    }
+
+    const tokenData = await tokenRes.json();
+
+    // Update session with new access token
+    sess.tokens.access_token = tokenData.access_token;
+    if (tokenData.refresh_token) {
+      sess.tokens.refresh_token = tokenData.refresh_token;
+    }
+
+    await putSession(env, `sess:${sessionId}`, sess, 3600);
+
+    return json({
+      access_token: tokenData.access_token,
+      expires_in: tokenData.expires_in || 3600
+    });
+
+  } catch (error) {
+    console.error("Refresh error:", error);
+    return json({ error: "internal_error" }, 500);
+  }
 }
 
 // ---- GitHub OAuth ----

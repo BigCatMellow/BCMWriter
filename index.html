@@ -1064,14 +1064,6 @@
 
     <script>
 	
-	try {
-    loadSavedContent();
-} catch (error) {
-    console.error('Error loading saved content:', error);
-    updateDriveStatus('Error loading saved content. Starting fresh.');
-}
-	
-	
         let currentEditor = document.getElementById('editor');
         let focusEditor = document.getElementById('focusEditor');
         let isInFocusMode = false;
