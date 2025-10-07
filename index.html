@@ -2071,12 +2071,10 @@ function connectGoogleDrive() {
     return;
   }
 
-  updateDriveStatus('Connecting...');
-  const state = crypto.randomUUID();
-  localStorage.setItem('focusWriterOAuthState', state);
-
-  const authUrl = `${WORKER_URL}/auth/start?client_id=${encodeURIComponent(CLIENT_ID)}&state=${state}`;
-  window.location.href = authUrl;
+  updateDriveStatus('Connecting to Google Drive...');
+  
+  // Redirect to worker's Google OAuth start endpoint
+  window.location.href = `${WORKER_URL}/auth/google/start`;
 }
 
 function disconnectGoogleDrive() {
