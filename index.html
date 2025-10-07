@@ -2072,8 +2072,6 @@ function connectGoogleDrive() {
   }
 
   updateDriveStatus('Connecting to Google Drive...');
-  
-  // Redirect to worker's Google OAuth start endpoint
   window.location.href = `${WORKER_URL}/auth/google/start`;
 }
 
