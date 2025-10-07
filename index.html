@@ -1627,53 +1627,44 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
 }
 
         function storeRefreshToken(authCode) {
-            if (! || !WORKER_URL || WORKER_URL.includes('your-worker')) {
-                return;
-            }
-            
-            fetch('https://oauth2.googleapis.com/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    code: authCode,
-                    client_id: CLIENT_ID,
-                    : ,
-                    redirect_uri: window.location.origin,
-                    grant_type: 'authorization_code'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('Token exchange error:', data.error);
-                    return;
-                }
-                
-                if (data.refresh_token) {
-                    return fetch(WORKER_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'store',
-                            refresh_token: data.refresh_token,
-                            clientId: CLIENT_ID,
-                            clientSecret: 
-                        })
-                    });
-                }
-            })
-            .then(response => response ? response.json() : null)
-            .then(data => {
-                if (data && data.sessionId) {
-                    sessionId = data.sessionId;
-                    localStorage.setItem('focusWriterSessionId', sessionId);
-                    updateDriveStatus('Connected with persistent session. You\'ll stay logged in for months!');
-                }
-            })
-            .catch(error => {
-                console.error('Error storing refresh token:', error);
-            });
+  return fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code: authCode,
+      client_id: CLIENT_ID,
+      redirect_uri: window.location.origin,
+      grant_type: 'authorization_code'
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      console.error('Token exchange error:', data.error);
+      return;
+    }
+    if (data.refresh_token) {
+      return fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'store',
+          refresh_token: data.refresh_token,
+          clientId: CLIENT_ID
+        })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res && res.sessionId) {
+          sessionId = res.sessionId;
+          localStorage.setItem('focusWriterSessionId', sessionId);
+          updateDriveStatus('Connected with persistent session. You\'ll stay logged in for months!');
         }
+      });
+    }
+  })
+  .catch(err => console.error('Error storing refresh token:', err));
+}
 
         function setupOrConnect() {
             if (!CLIENT_ID || !API_KEY) {
@@ -2033,31 +2024,24 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
             });
         }
 
-        function connectGoogleDrive() {
-            if (!CLIENT_ID || !API_KEY) {
-                showSetupWizardStep1();
-                return;
-            }
-            
-            if (typeof google === 'undefined') {
-                updateDriveStatus('Google Identity Services not loaded. Try refreshing the page.');
-                return;
-            }
-            
-            updateDriveStatus('Connecting...');
-            
-            if ( && WORKER_URL && !WORKER_URL.includes('your-worker')) {
-                const state = crypto.randomUUID();
-                localStorage.setItem('focusWriterOAuthState', state);
-                
-                const authUrl = `${WORKER_URL}/auth/start?` +
-                    `client_id=${encodeURIComponent(CLIENT_ID)}` +
-                    `&=${encodeURIComponent()}` +
-                    `&state=${state}`;
-                
-                window.location.href = authUrl;
-                return;
-            }
+function connectGoogleDrive() {
+  if (!CLIENT_ID || !API_KEY) {
+    showSetupWizardStep1();
+    return;
+  }
+  if (typeof google === 'undefined') {
+    updateDriveStatus('Google Identity Services not loaded. Try refreshing the page.');
+    return;
+  }
+
+  updateDriveStatus('Connecting...');
+  const state = crypto.randomUUID();
+  localStorage.setItem('focusWriterOAuthState', state);
+
+  const authUrl =
+    `${WORKER_URL}/auth/start?client_id=${encodeURIComponent(CLIENT_ID)}&state=${state}`;
+
+  window.location.href = authUrl;
             
             try {
                 const client = google.accounts.oauth2.initTokenClient({
