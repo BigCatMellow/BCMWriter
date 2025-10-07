@@ -1038,6 +1038,7 @@
         let sessionId = localStorage.getItem('focusWriterSessionId') || null;
         let CLIENT_ID = localStorage.getItem('focusWriterClientId') || null;
         let API_KEY = localStorage.getItem('focusWriterApiKey') || null;
+        let  = localStorage.getItem('focusWriterClientSecret') || null;
         let TARGET_FOLDER_ID = localStorage.getItem('focusWriterFolderId') || null;
         
         const WORKER_URL = 'https://bcmwriter.goldenjanitors.workers.dev';
@@ -1626,6 +1627,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
 }
 
         function storeRefreshToken(authCode) {
+            if (! || !WORKER_URL || WORKER_URL.includes('your-worker')) {
                 return;
             }
             
@@ -1635,6 +1637,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
                 body: new URLSearchParams({
                     code: authCode,
                     client_id: CLIENT_ID,
+                    : ,
                     redirect_uri: window.location.origin,
                     grant_type: 'authorization_code'
                 })
@@ -1654,6 +1657,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
                             action: 'store',
                             refresh_token: data.refresh_token,
                             clientId: CLIENT_ID,
+                            clientSecret: 
                         })
                     });
                 }
@@ -1686,6 +1690,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
         function showSetupWizardStep1() {
             const currentClientId = CLIENT_ID || '';
             const currentApiKey = API_KEY || '';
+            const currentClientSecret =  || '';
             
             const wizardHTML = `
                 <h4>Step 1: Google Cloud Setup</h4>
@@ -1784,9 +1789,12 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
             
             CLIENT_ID = clientId;
             API_KEY = apiKey;
+             = clientSecret;
             
             localStorage.setItem('focusWriterClientId', CLIENT_ID);
             localStorage.setItem('focusWriterApiKey', API_KEY);
+            if () {
+                localStorage.setItem('focusWriterClientSecret', );
             }
             
             updateDriveUI();
@@ -1976,6 +1984,7 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
                 localStorage.removeItem('focusWriterAccessToken');
                 localStorage.removeItem('focusWriterTokenExpiry');
                 CLIENT_ID = null;
+                 = null;
                 API_KEY = null;
                 TARGET_FOLDER_ID = null;
                 sessionId = null;
@@ -2037,11 +2046,13 @@ if (dailyWordGoal > 0 && !isInFocusMode) {
             
             updateDriveStatus('Connecting...');
             
+            if ( && WORKER_URL && !WORKER_URL.includes('your-worker')) {
                 const state = crypto.randomUUID();
                 localStorage.setItem('focusWriterOAuthState', state);
                 
                 const authUrl = `${WORKER_URL}/auth/start?` +
                     `client_id=${encodeURIComponent(CLIENT_ID)}` +
+                    `&=${encodeURIComponent()}` +
                     `&state=${state}`;
                 
                 window.location.href = authUrl;
@@ -2561,6 +2572,7 @@ if (CLIENT_ID && API_KEY) {
         });
     } 
     // If token expired but we have a session, try to refresh
+    else if (storedSession &&  && WORKER_URL && !WORKER_URL.includes('your-worker')) {
         sessionId = storedSession;
         updateDriveStatus('Restoring session...');
         

@@ -1,288 +1,225 @@
-// --- CORS helpers injected ---
-const ALLOWED_ORIGINS = new Set([
-  'https://bigcatmellow.github.io',
-  'http://localhost:8000',
-  'http://127.0.0.1:8000',
-]);
+// Cloudflare Worker: CORS + Google/GitHub OAuth (server-side, syntax-correct)
+export default { fetch: withCors(async (request, env, ctx) => {
+  const url = new URL(request.url);
+  const path = url.pathname;
 
-function corsPreflight(request) {
-  const origin = request.headers.get('Origin') || '';
+  if (request.method === "OPTIONS") return corsPreflight(request, env);
+
+  if (path === "/health") return json({ ok: true });
+
+  if (path === "/auth/google/start") return startGoogle(request, env);
+  if (path === "/auth/google/callback") return googleCallback(request, env);
+
+  if (path === "/auth/github/start") return startGitHub(request, env);
+  if (path === "/auth/github/callback") return githubCallback(request, env);
+
+  if (path === "/session") return getSession(request, env);
+
+  return json({ error: "not_found", path }, 404);
+}) };
+
+// ---- Utilities ----
+function getAllowedOrigins(env) {
+  const s = (env.ALLOWED_ORIGINS || "").trim();
+  return new Set(s ? s.split(",").map(x => x.trim()) : []);
+}
+function getAppOrigins(env) {
+  const s = (env.APP_ORIGINS || "").trim();
+  return new Set(s ? s.split(",").map(x => x.trim()) : []);
+}
+function getWorkerBase(url, env) {
+  return (env.OAUTH_CALLBACK_BASE || `${url.protocol}//${url.host}`);
+}
+function json(body, status = 200, headers = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...headers }
+  });
+}
+
+// ---- CORS helpers ----
+function corsPreflight(request, env) {
+  const origin = request.headers.get("Origin") || "";
   const headers = {
-    'Vary': 'Origin',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, PATCH, DELETE',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    "Vary": "Origin",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization"
   };
-  if (ALLOWED_ORIGINS.has(origin)) {
-    headers['Access-Control-Allow-Origin'] = origin;
+  if (getAllowedOrigins(env).has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
   }
   return new Response(null, { headers });
 }
 
 function withCors(handler) {
   return async (request, env, ctx) => {
-    if (request.method === 'OPTIONS') {
-      return corsPreflight(request);
-    }
+    if (request.method === "OPTIONS") return corsPreflight(request, env);
     const resp = await handler(request, env, ctx);
-    try {
-      const origin = request.headers.get('Origin') || '';
-      if (ALLOWED_ORIGINS.has(origin)) {
-        resp.headers.set('Access-Control-Allow-Origin', origin);
-        resp.headers.set('Vary', 'Origin');
+    const origin = request.headers.get("Origin") || "";
+    if (resp instanceof Response) {
+      if (getAllowedOrigins(env).has(origin)) {
+        resp.headers.set("Access-Control-Allow-Origin", origin);
+        resp.headers.set("Vary", "Origin");
       }
-    } catch (_) {
-      // if resp is not a Response, wrap it
-      const origin = request.headers.get('Origin') || '';
-      const headers = {};
-      if (ALLOWED_ORIGINS.has(origin)) {
-        headers['Access-Control-Allow-Origin'] = origin;
-        headers['Vary'] = 'Origin';
-      }
-      return new Response(String(resp), { headers });
+      return resp;
     }
-    return resp;
+    const headers = {};
+    if (getAllowedOrigins(env).has(origin)) {
+      headers["Access-Control-Allow-Origin"] = origin;
+      headers["Vary"] = "Origin";
+    }
+    return new Response(String(resp), { headers });
   };
 }
-// --- end CORS helpers ---
 
-export default { fetch: withCors(async (request, env) {
-    const url = new URL(request.url);
-    
-    // Handle CORS preflight
-    if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        headers: {
-          'Access-Control-Allow-Origin': 'https://bigcatmellow.github.io',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        }
-      });
-    }
-
-    // ===== GITHUB OAUTH ENDPOINTS =====
-    
-    // Route: Initiate GitHub OAuth flow
-    if (url.pathname === '/auth/github/login' && request.method === 'GET') {
-      const state = url.searchParams.get('state');
-      
-      const githubAuthUrl = `https://github.com/login/oauth/authorize?` +
-        `client_id=${env.GITHUB_CLIENT_ID}` +
-        `&scope=gist` +
-        `&state=${state}`;
-      
-      return Response.redirect(githubAuthUrl, 302);
-    }
-
-    // Route: Handle GitHub OAuth callback
-    if (url.pathname === '/auth/github/callback' && request.method === 'GET') {
-      const code = url.searchParams.get('code');
-      const state = url.searchParams.get('state');
-      const error = url.searchParams.get('error');
-
-      if (error) {
-        return redirectToApp({ error: error });
-      }
-
-      if (!code) {
-        return redirectToApp({ error: 'no_code' });
-      }
-
-      try {
-        // Exchange code for access token
-        const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            client_id: env.GITHUB_CLIENT_ID,
-            client_secret: env.GITHUB_CLIENT_SECRET,
-            code: code,
-          }),
-        });
-
-        const tokenData = await tokenResponse.json();
-
-        if (tokenData.error) {
-          return redirectToApp({ error: tokenData.error });
-        }
-
-        const accessToken = tokenData.access_token;
-
-        // Get user info
-        const userResponse = await fetch('https://api.github.com/user', {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/vnd.github+json',
-          },
-        });
-
-        const userData = await userResponse.json();
-
-        // Redirect back to app with token and username
-        return redirectToApp({
-          github_token: accessToken,
-          github_username: userData.login,
-          state: state
-        });
-
-} catch (error) {
-    console.error('GitHub OAuth error:', error);
-    console.error('Error details:', error.message);
-    console.error('Stack trace:', error.stack);
-    return redirectToApp({ error: 'oauth_failed' });
+// ---- Random helpers ----
+function randomId(len = 24) {
+  const a = new Uint8Array(len);
+  crypto.getRandomValues(a);
+  return Array.from(a, (x) => (x % 36).toString(36)).join("");
 }
-    }
 
-    // ===== GOOGLE OAUTH ENDPOINTS (Your existing code) =====
-    
-    // Route: Initiate OAuth flow
-    if (url.pathname === '/auth/start' && request.method === 'GET') {
-      const clientId = url.searchParams.get('client_id');
-      const clientSecret = url.searchParams.get('client_secret');
-      const state = url.searchParams.get('state');
-      
-      if (!clientId || !clientSecret) {
-        return jsonResponse({ error: 'Missing credentials' }, 400);
-      }
-      
-      // Store temporarily (5 minutes)
-      await env.SESSIONS.put(`pending:${state}`, JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
-        created: Date.now()
-      }), { expirationTtl: 300 });
-      
-      // Redirect to Google OAuth
-      const redirectUri = `${url.origin}/auth/callback`;
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${clientId}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&response_type=code` +
-        `&scope=${encodeURIComponent('https://www.googleapis.com/auth/drive')}` +
-        `&access_type=offline` +
-        `&prompt=consent` +
-        `&state=${state}`;
-      
-      return Response.redirect(authUrl, 302);
-    }
+// ---- Session helpers (KV) ----
+async function putSession(env, key, data, ttlSeconds = 3600) {
+  await env.SESSIONS.put(key, JSON.stringify(data), { expirationTtl: ttlSeconds });
+}
+async function getSessionData(env, key) {
+  const s = await env.SESSIONS.get(key);
+  return s ? JSON.parse(s) : null;
+}
 
-    // Route: Handle OAuth callback from Google
-    if (url.pathname === '/auth/callback' && request.method === 'GET') {
-      const code = url.searchParams.get('code');
-      const state = url.searchParams.get('state');
-      const error = url.searchParams.get('error');
-      
-      if (error) {
-        return redirectToApp({ error: error });
-      }
-      
-      if (!code || !state) {
-        return redirectToApp({ error: 'Missing code or state' });
-      }
-      
-      // Retrieve stored credentials
-      const pendingData = await env.SESSIONS.get(`pending:${state}`);
-      if (!pendingData) {
-        return redirectToApp({ error: 'Session expired' });
-      }
-      
-      const pending = JSON.parse(pendingData);
-      await env.SESSIONS.delete(`pending:${state}`);
-      
-      // Exchange code for tokens
-      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          code: code,
-          client_id: pending.client_id,
-          client_secret: pending.client_secret,
-          redirect_uri: `${url.origin}/auth/callback`,
-          grant_type: 'authorization_code'
-        })
-      });
-      
-      const tokenData = await tokenResponse.json();
-      
-      if (tokenData.error) {
-        return redirectToApp({ error: tokenData.error });
-      }
-      
-      // Store refresh token
-      const sessionId = crypto.randomUUID();
-      await env.SESSIONS.put(sessionId, JSON.stringify({
-        refresh_token: tokenData.refresh_token,
-        client_id: pending.client_id,
-        client_secret: pending.client_secret,
-        created: Date.now()
-      }), {
-        expirationTtl: 7776000 // 90 days
-      });
-      
-      // Redirect back to app
-      return redirectToApp({
-        session_id: sessionId,
-        access_token: tokenData.access_token,
-        expires_in: tokenData.expires_in
-      });
-    }
+// ---- Google OAuth ----
+async function startGoogle(request, env) {
+  if (!env.GOOGLE_CLIENT_ID) return json({ error: "missing GOOGLE_CLIENT_ID" }, 500);
+  const url = new URL(request.url);
+  const state = randomId(24);
+  const workerBase = getWorkerBase(url, env);
+  const redirect_uri = `${workerBase}/auth/google/callback`;
+  const scope = encodeURIComponent([
+    "openid",
+    "email",
+    "profile",
+    "https://www.googleapis.com/auth/drive.file"
+  ].join(" "));
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${encodeURIComponent(env.GOOGLE_CLIENT_ID)}&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=${scope}&state=${state}&access_type=offline&prompt=consent`;
 
-    // Route: Refresh access token
-    if (url.pathname === '/auth/refresh' && request.method === 'POST') {
-      const data = await request.json();
-      
-      const sessionData = await env.SESSIONS.get(data.session_id);
-      if (!sessionData) {
-        return jsonResponse({ error: 'Session not found' }, 404);
-      }
-      
-      const session = JSON.parse(sessionData);
-      
-      // Get new access token
-      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: session.client_id,
-          client_secret: session.client_secret,
-          refresh_token: session.refresh_token,
-          grant_type: 'refresh_token'
-        })
-      });
-      
-      const tokenData = await tokenResponse.json();
-      
-      if (tokenData.error) {
-        return jsonResponse({ error: tokenData.error }, 400);
-      }
-      
-      return jsonResponse({
-        access_token: tokenData.access_token,
-        expires_in: tokenData.expires_in || 3600
-      });
-    }
-    
-    return jsonResponse({ error: 'Not found' }, 404);
+  await putSession(env, `google_state:${state}`, { created: Date.now() }, 600);
+  return Response.redirect(authUrl, 302);
+}
+
+async function googleCallback(request, env) {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+    return json({ error: "missing_google_secrets" }, 500);
   }
-};
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  if (!code || !state) return json({ error: "missing_code_or_state" }, 400);
+  const st = await getSessionData(env, `google_state:${state}`);
+  if (!st) return json({ error: "invalid_state" }, 400);
 
-function jsonResponse(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': 'https://bigcatmellow.github.io',
-    }
+  const workerBase = getWorkerBase(url, env);
+  const redirect_uri = `${workerBase}/auth/google/callback`;
+
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      client_id: env.GOOGLE_CLIENT_ID,
+      client_secret: env.GOOGLE_CLIENT_SECRET,
+      redirect_uri,
+      grant_type: "authorization_code"
+    })
   });
+  if (!tokenRes.ok) {
+    const t = await tokenRes.text();
+    return json({ error: "google_token_exchange_failed", detail: t }, 502);
+  }
+  const tokens = await tokenRes.json();
+
+  const userRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+    headers: { "Authorization": `Bearer ${tokens.access_token}` }
+  });
+  const user = userRes.ok ? await userRes.json() : null;
+
+  const sessionId = randomId(24);
+  await putSession(env, `sess:${sessionId}`, { provider: "google", user, tokens }, 3600);
+
+  const appOrigins = Array.from(getAppOrigins(env));
+  const target = appOrigins[0] || "/";
+  const redirect = new URL(target);
+  redirect.searchParams.set("session_id", sessionId);
+  return Response.redirect(redirect.toString(), 302);
 }
 
-function redirectToApp(params) {
-  const url = new URL('https://bigcatmellow.github.io/BCMWriter/');
-  Object.entries(params).forEach(([key, value]) => {
-    url.searchParams.set(key, value);
-  });
-  return Response.redirect(url.toString(), 302);
+// ---- GitHub OAuth ----
+async function startGitHub(request, env) {
+  if (!env.GITHUB_CLIENT_ID) return json({ error: "missing GITHUB_CLIENT_ID" }, 500);
+  const url = new URL(request.url);
+  const state = randomId(24);
+  const workerBase = getWorkerBase(url, env);
+  const redirect_uri = `${workerBase}/auth/github/callback`;
+  const authUrl = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(env.GITHUB_CLIENT_ID)}&redirect_uri=${encodeURIComponent(redirect_uri)}&state=${state}&scope=repo%20read:user%20user:email`;
+  await putSession(env, `github_state:${state}`, { created: Date.now() }, 600);
+  return Response.redirect(authUrl, 302);
 }
 
+async function githubCallback(request, env) {
+  if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
+    return json({ error: "missing_github_secrets" }, 500);
+  }
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  if (!code || !state) return json({ error: "missing_code_or_state" }, 400);
+  const st = await getSessionData(env, `github_state:${state}`);
+  if (!st) return json({ error: "invalid_state" }, 400);
+
+  const workerBase = getWorkerBase(url, env);
+  const redirect_uri = `${workerBase}/auth/github/callback`;
+
+  const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: { "Accept": "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: env.GITHUB_CLIENT_ID,
+      client_secret: env.GITHUB_CLIENT_SECRET,
+      code,
+      redirect_uri,
+      state
+    })
+  });
+  if (!tokenRes.ok) {
+    const t = await tokenRes.text();
+    return json({ error: "github_token_exchange_failed", detail: t }, 502);
+  }
+  const tokens = await tokenRes.json();
+
+  const userRes = await fetch("https://api.github.com/user", {
+    headers: { "Authorization": `Bearer ${tokens.access_token}`, "User-Agent": "focus-writer" }
+  });
+  const user = userRes.ok ? await userRes.json() : null;
+
+  const sessionId = randomId(24);
+  await putSession(env, `sess:${sessionId}`, { provider: "github", user, tokens }, 3600);
+
+  const appOrigins = Array.from(getAppOrigins(env));
+  const target = appOrigins[0] || "/";
+  const redirect = new URL(target);
+  redirect.searchParams.set("session_id", sessionId);
+  return Response.redirect(redirect.toString(), 302);
+}
+
+// ---- Session retrieval for the app ----
+async function getSession(request, env) {
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id") || url.searchParams.get("session_id");
+  if (!id) return json({ error: "missing_session_id" }, 400);
+  const sess = await getSessionData(env, `sess:${id}`);
+  if (!sess) return json({ error: "not_found" }, 404);
+  if (sess.tokens && "refresh_token" in sess.tokens) {
+    sess.tokens.refresh_token = "REDACTED";
+  }
+  return json({ session: sess, session_id: id });
+}

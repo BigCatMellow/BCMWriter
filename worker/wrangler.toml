@@ -1,12 +1,20 @@
 name = "bcmwriter"
-main = "worker/src/index.js"
+main = "src/index.js"
 compatibility_date = "2024-01-01"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "16ce928b90564812bbed0d164a1b6ce6"
+id = "2ce2a8daf192495bba413fc8a1f6c4a6"
+preview_id = "2ce2a8daf192495bba413fc8a1f6c4a6"
+
+[vars]
+ALLOWED_ORIGINS = "http://localhost:8000,http://localhost:3000,https://bigcatmellow.github.io"
+OAUTH_CALLBACK_BASE = "https://bcmwriter.goldenjanitors.workers.dev"
+APP_ORIGINS = "http://localhost:8000,https://bigcatmellow.github.io"
+GOOGLE_DRIVE_FOLDER = "1HDSoa7EThzo15nkwWlb2RURzBWNxSIAe"
+
+
 
 # Secrets are set via CLI, not in this file
 # Run: wrangler secret put GITHUB_CLIENT_ID
 # Run: wrangler secret put GITHUB_CLIENT_SECRET
-preview_id = "16ce928b90564812bbed0d164a1b6ce6"
