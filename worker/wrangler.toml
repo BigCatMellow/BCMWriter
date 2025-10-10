@@ -9,7 +9,7 @@ preview_id = "2ce2a8daf192495bba413fc8a1f6c4a6"
 
 [vars]
 ALLOWED_ORIGINS = "http://localhost:8000,http://localhost:3000,https://bigcatmellow.github.io"
-APP_ORIGINS = "http://localhost:8000,https://bigcatmellow.github.io/BCMWriter/"
+APP_ORIGINS = "https://bigcatmellow.github.io/BCMWriter/"
 OAUTH_CALLBACK_BASE = "https://bcmwriter.goldenjanitors.workers.dev"
 GOOGLE_DRIVE_FOLDER = "1HDSoa7EThzo15nkwWlb2RURzBWNxSIAe"
 GOOGLE_CLIENT_ID = "224286904313-f3u6k9lgenovbth9mi47biflh7vmi05k.apps.googleusercontent.com"

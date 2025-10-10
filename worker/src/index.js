@@ -151,6 +151,8 @@ async function googleCallback(request, env) {
   const target = appOrigins[0] || "/";
   const redirect = new URL(target);
   redirect.searchParams.set("session_id", sessionId);
+  redirect.searchParams.set("access_token", tokens.access_token);
+  redirect.searchParams.set("expires_in", tokens.expires_in || 3600);
   return Response.redirect(redirect.toString(), 302);
 }
 
