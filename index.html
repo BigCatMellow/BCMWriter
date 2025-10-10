@@ -2460,49 +2460,56 @@ function disconnectGoogleDrive() {
             }
         });
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const sessionIdParam = urlParams.get('session_id');
-        const accessTokenParam = urlParams.get('access_token');
-        const expiresInParam = urlParams.get('expires_in');
-        const errorParam = urlParams.get('error');
-        const oauthState = localStorage.getItem('focusWriterOAuthState');
-        
-        if (errorParam) {
-            console.error('OAuth error:', errorParam);
-            updateDriveStatus('Authentication failed: ' + errorParam);
-            window.history.replaceState({}, document.title, window.location.pathname);
-        } else if (sessionIdParam && accessTokenParam && oauthState) {
-            localStorage.removeItem('focusWriterOAuthState');
+const urlParams = new URLSearchParams(window.location.search);
+const sessionIdParam = urlParams.get('session_id');
+const accessTokenParam = urlParams.get('access_token');
+const expiresInParam = urlParams.get('expires_in');
+const errorParam = urlParams.get('error');
+
+if (errorParam) {
+    console.error('OAuth error:', errorParam);
+    updateDriveStatus('Authentication failed: ' + errorParam);
+    window.history.replaceState({}, document.title, window.location.pathname);
+} else if (sessionIdParam && accessTokenParam) {
+    // ✅ REMOVED THE oauthState CHECK - we don't need it here!
+    
+    sessionId = sessionIdParam;
+    accessToken = accessTokenParam;
+    tokenExpiry = Date.now() + (parseInt(expiresInParam || '3600') * 1000);
+    isSignedIn = true;  // ✅ THIS IS THE KEY!
+    
+    localStorage.setItem('focusWriterSessionId', sessionId);
+    localStorage.setItem('focusWriterAccessToken', accessToken);
+    localStorage.setItem('focusWriterTokenExpiry', tokenExpiry.toString());
+    
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    // ✅ Initialize GAPI first, THEN update UI
+    if (CLIENT_ID && API_KEY) {
+        loadGAPI().then(() => {
+            gapi.client.setToken({access_token: accessToken});
+            isGoogleDriveLoaded = true;
             
-            sessionId = sessionIdParam;
-            accessToken = accessTokenParam;
-            tokenExpiry = Date.now() + (parseInt(expiresInParam || '3600') * 1000);
-            isSignedIn = true;
+            updateDriveUI();  // ✅ Update UI AFTER GAPI is loaded
             
-            localStorage.setItem('focusWriterSessionId', sessionId);
-            localStorage.setItem('focusWriterAccessToken', accessToken);
-            localStorage.setItem('focusWriterTokenExpiry', tokenExpiry);
-            
-            window.history.replaceState({}, document.title, window.location.pathname);
-            
-            updateDriveUI();
-            if (CLIENT_ID && API_KEY) {
-                loadGAPI().then(() => {
-                    gapi.client.setToken({access_token: accessToken});
-                    isGoogleDriveLoaded = true;
-                    
-                    if (!TARGET_FOLDER_ID) {
-                        showSetupWizardStep2();
-                    } else {
-                        updateDriveStatus('Connected with persistent session!');
-                        loadFromGoogleDrive();
-                        setTimeout(() => startBackupTimer(), 2000);
-                    }
-                }).catch(error => {
-                    console.error('GAPI initialization error:', error);
-                });
+            if (!TARGET_FOLDER_ID) {
+                showSetupWizardStep2();
+            } else {
+                updateDriveStatus('Connected with persistent session!');
+                loadFromGoogleDrive();
+                setTimeout(() => startBackupTimer(), 2000);
             }
-        }
+        }).catch(error => {
+            console.error('GAPI initialization error:', error);
+            updateDriveStatus('Connected but Drive initialization failed.');
+            updateDriveUI();  // Still update UI even if GAPI fails
+        });
+    } else {
+        // If no credentials, still mark as connected but show message
+        updateDriveUI();
+        updateDriveStatus('Connected! Set up Google credentials to enable backup.');
+    }
+}
         
         // Initialize on page load
 loadSavedContent();
