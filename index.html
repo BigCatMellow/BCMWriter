@@ -2524,110 +2524,12 @@ function initializeEventListeners() {
     console.log('✅ All event listeners initialized');
 }
 
-// Call it immediately
-initializeEventListeners();
-
-        currentEditor.addEventListener('input', syncEditors);
-        focusEditor.addEventListener('input', syncEditors);
-
-        currentEditor.addEventListener('mouseup', handleTextSelection);
-        focusEditor.addEventListener('mouseup', handleTextSelection);
-        
-        currentEditor.addEventListener('touchend', handleTextSelection);
-        focusEditor.addEventListener('touchend', handleTextSelection);
-        
-        document.addEventListener('mousedown', (e) => {
-            if (floatingToolbar && !floatingToolbar.contains(e.target)) {
-                const selection = window.getSelection();
-                if (!selection.toString().trim()) {
-                    hideFloatingToolbar();
-                }
-            }
-        });
-
-        // Attach goal modal click handler
-        const goalStatItem = document.getElementById('goalStatItem');
-        if (goalStatItem) {
-            goalStatItem.addEventListener('click', openGoalModal);
-        }
-
-        // Attach goal modal button handlers
-        const goalModalCloseBtn = document.getElementById('goalModalCloseBtn');
-        const setGoalBtn = document.getElementById('setGoalBtn');
-        const cancelGoalBtn = document.getElementById('cancelGoalBtn');
-        const clearGoalBtn = document.getElementById('clearGoalBtn');
-        const goalModalInput = document.getElementById('goalModalInput');
-
-        if (goalModalCloseBtn) {
-            goalModalCloseBtn.addEventListener('click', closeGoalModal);
-        }
-        if (setGoalBtn) {
-            setGoalBtn.addEventListener('click', setDailyGoal);
-        }
-        if (cancelGoalBtn) {
-            cancelGoalBtn.addEventListener('click', closeGoalModal);
-        }
-        if (clearGoalBtn) {
-            clearGoalBtn.addEventListener('click', clearGoal);
-        }
-        if (goalModalInput) {
-            goalModalInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    setDailyGoal();
-                }
-            });
-        }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                if (isInFocusMode) {
-                    toggleFocusMode();
-                } else if (isMenuOpen) {
-                    closeMenu();
-                }
-            }
-            
-            if (e.ctrlKey && e.key === 'm') {
-                e.preventDefault();
-                toggleMenu();
-            }
-            
-            if (e.ctrlKey && e.key === 's') {
-                e.preventDefault();
-                if (isSignedIn && TARGET_FOLDER_ID) {
-                    manualBackup();
-                } else {
-                    saveDocument();
-                }
-            }
-            
-            if (e.ctrlKey && e.key === 'b') {
-                e.preventDefault();
-                applyMarkdown('bold');
-            }
-            
-            if (e.ctrlKey && e.key === 'i') {
-                e.preventDefault();
-                applyMarkdown('italic');
-            }
-            
-            if (e.ctrlKey && e.key === 'u') {
-                e.preventDefault();
-                applyMarkdown('underline');
-            }
-            
-            if (e.ctrlKey && e.key === '[') {
-                e.preventDefault();
-                applyMarkdown('note');
-            }
-        });
-
-// ========================================
+      
+        // Initialize on page load
 // Initialize on page load
-// ========================================
-const storedToken = localStorage.getItem('focusWriterAccessToken');
-const storedExpiry = localStorage.getItem('focusWriterTokenExpiry');
-const storedSession = localStorage.getItem('focusWriterSessionId');
+loadSavedContent();
+
+// Check stored credentials (already declared earlier)
 const oauthJustCompleted = localStorage.getItem('focusWriterOAuthSuccess') === 'true';
 const oauthError = localStorage.getItem('focusWriterOAuthError');
 
@@ -2638,13 +2540,12 @@ if (oauthError) {
 }
 
 // Handle successful OAuth that just completed
-// Handle successful OAuth that just completed
 if (oauthJustCompleted) {
     console.log('🎉 OAuth just completed! Setting up...');
     
-    sessionId = storedSession;
-    accessToken = storedToken;
-    tokenExpiry = parseInt(storedExpiry);
+    sessionId = localStorage.getItem('focusWriterSessionId');
+    accessToken = localStorage.getItem('focusWriterAccessToken');
+    tokenExpiry = parseInt(localStorage.getItem('focusWriterTokenExpiry'));
     isSignedIn = true;
     isGoogleDriveLoaded = true;
     
@@ -2653,7 +2554,7 @@ if (oauthJustCompleted) {
     
     // Update UI
     updateDriveUI();
-    initializeEventListeners(); // ← ADD THIS LINE
+    initializeEventListeners();
     
     if (!TARGET_FOLDER_ID) {
         showSetupWizardStep2();
@@ -2663,62 +2564,45 @@ if (oauthJustCompleted) {
         setTimeout(() => startBackupTimer(), 2000);
     }
 }
-        
-        // Initialize on page load
-loadSavedContent();
-
-const storedToken = localStorage.getItem('focusWriterAccessToken');
-const storedExpiry = localStorage.getItem('focusWriterTokenExpiry');
-const storedSession = localStorage.getItem('focusWriterSessionId');
-
 // Check if we have credentials configured
-if (CLIENT_ID && API_KEY) {
+else if (CLIENT_ID && API_KEY) {
     // If we have a valid token, use it
-    if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
-        accessToken = storedToken;
-        tokenExpiry = parseInt(storedExpiry);
-        sessionId = storedSession;
-        isSignedIn = true;
+    if (localStorage.getItem('focusWriterAccessToken') && 
+        localStorage.getItem('focusWriterTokenExpiry') && 
+        Date.now() < parseInt(localStorage.getItem('focusWriterTokenExpiry'))) {
         
-        loadGAPI().then(() => {
-            gapi.client.setToken({access_token: accessToken});
-            isGoogleDriveLoaded = true;
-            updateDriveUI();
-            
-            if (TARGET_FOLDER_ID) {
-                updateDriveStatus('Connected to Google Drive. Persistent session active.');
-                startBackupTimer();
-            } else {
-                updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
-            }
-        }).catch(error => {
-            console.error('Error initializing GAPI:', error);
-        });
-    } 
+        accessToken = localStorage.getItem('focusWriterAccessToken');
+        tokenExpiry = parseInt(localStorage.getItem('focusWriterTokenExpiry'));
+        sessionId = localStorage.getItem('focusWriterSessionId');
+        isSignedIn = true;
+        isGoogleDriveLoaded = true;
+        
+        updateDriveUI();
+        
+        if (TARGET_FOLDER_ID) {
+            updateDriveStatus('Connected to Google Drive. Persistent session active.');
+            startBackupTimer();
+        } else {
+            updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
+        }
+    }
     // If token expired but we have a session, try to refresh
-    else if (storedSession && CLIENT_SECRET) {
-        sessionId = storedSession;
+    else if (localStorage.getItem('focusWriterSessionId') && CLIENT_SECRET) {
+        sessionId = localStorage.getItem('focusWriterSessionId');
         updateDriveStatus('Restoring session...');
         
         refreshAccessToken().then(refreshed => {
             if (refreshed) {
                 isSignedIn = true;
+                isGoogleDriveLoaded = true;
+                updateDriveUI();
                 
-                loadGAPI().then(() => {
-                    gapi.client.setToken({access_token: accessToken});
-                    isGoogleDriveLoaded = true;
-                    updateDriveUI();
-                    
-                    if (TARGET_FOLDER_ID) {
-                        updateDriveStatus('Connected to Google Drive. Session restored successfully.');
-                        startBackupTimer();
-                    } else {
-                        updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
-                    }
-                }).catch(error => {
-                    console.error('Error initializing GAPI:', error);
-                    updateDriveStatus('Session restored but Drive initialization failed.');
-                });
+                if (TARGET_FOLDER_ID) {
+                    updateDriveStatus('Connected to Google Drive. Session restored successfully.');
+                    startBackupTimer();
+                } else {
+                    updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
+                }
             } else {
                 // Refresh failed, clear everything
                 localStorage.removeItem('focusWriterSessionId');
@@ -2731,14 +2615,11 @@ if (CLIENT_ID && API_KEY) {
                 updateDriveUI();
                 updateDriveStatus('Session expired. Please reconnect to Google Drive.');
             }
-        }).catch(error => {
-            console.error('Session refresh error:', error);
-            updateDriveStatus('Session refresh failed. Please reconnect.');
         });
     }
     // No valid session or token
     else {
-        if (storedToken || storedSession) {
+        if (localStorage.getItem('focusWriterAccessToken') || localStorage.getItem('focusWriterSessionId')) {
             // Clean up invalid tokens
             localStorage.removeItem('focusWriterAccessToken');
             localStorage.removeItem('focusWriterTokenExpiry');
