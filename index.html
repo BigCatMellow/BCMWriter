@@ -1064,6 +1064,50 @@
 
     <script>
 	
+	
+	// ========================================
+// CAPTURE URL PARAMS IMMEDIATELY - MUST BE FIRST!
+// ========================================
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionIdParam = urlParams.get('session_id');
+    const accessTokenParam = urlParams.get('access_token');
+    const expiresInParam = urlParams.get('expires_in');
+    const errorParam = urlParams.get('error');
+    
+    console.log('🔍 Immediate URL check:', window.location.href);
+    console.log('🔍 Params found:', { sessionIdParam, accessTokenParam, expiresInParam, errorParam });
+    
+    // If we have OAuth params, store them IMMEDIATELY before anything else happens
+    if (sessionIdParam && accessTokenParam) {
+        const tokenExpiry = Date.now() + (parseInt(expiresInParam || '3600') * 1000);
+        
+        localStorage.setItem('focusWriterSessionId', sessionIdParam);
+        localStorage.setItem('focusWriterAccessToken', accessTokenParam);
+        localStorage.setItem('focusWriterTokenExpiry', tokenExpiry.toString());
+        localStorage.setItem('focusWriterOAuthSuccess', 'true'); // Flag that OAuth just completed
+        
+        console.log('✅ OAuth tokens captured and stored immediately!');
+        
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
+    if (errorParam) {
+        localStorage.setItem('focusWriterOAuthError', errorParam);
+        console.error('❌ OAuth error:', errorParam);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+})();
+	
+	
+	
+	
+	
+	
+	
+	
+	
         let currentEditor = document.getElementById('editor');
         let focusEditor = document.getElementById('focusEditor');
         let isInFocusMode = false;
@@ -2460,54 +2504,43 @@ function disconnectGoogleDrive() {
             }
         });
 
-const urlParams = new URLSearchParams(window.location.search);
-const sessionIdParam = urlParams.get('session_id');
-const accessTokenParam = urlParams.get('access_token');
-const expiresInParam = urlParams.get('expires_in');
-const errorParam = urlParams.get('error');
+// ========================================
+// Initialize on page load
+// ========================================
+const storedToken = localStorage.getItem('focusWriterAccessToken');
+const storedExpiry = localStorage.getItem('focusWriterTokenExpiry');
+const storedSession = localStorage.getItem('focusWriterSessionId');
+const oauthJustCompleted = localStorage.getItem('focusWriterOAuthSuccess') === 'true';
+const oauthError = localStorage.getItem('focusWriterOAuthError');
 
-if (errorParam) {
-    console.error('OAuth error:', errorParam);
-    updateDriveStatus('Authentication failed: ' + errorParam);
-    window.history.replaceState({}, document.title, window.location.pathname);
-} else if (sessionIdParam && accessTokenParam) {
-    // ✅ REMOVED THE oauthState CHECK - we don't need it here!
+// Handle OAuth error
+if (oauthError) {
+    updateDriveStatus('Authentication failed: ' + oauthError);
+    localStorage.removeItem('focusWriterOAuthError');
+}
+
+// Handle successful OAuth that just completed
+if (oauthJustCompleted) {
+    console.log('🎉 OAuth just completed! Setting up...');
     
-    sessionId = sessionIdParam;
-    accessToken = accessTokenParam;
-    tokenExpiry = Date.now() + (parseInt(expiresInParam || '3600') * 1000);
-    isSignedIn = true;  // ✅ THIS IS THE KEY!
+    sessionId = storedSession;
+    accessToken = storedToken;
+    tokenExpiry = parseInt(storedExpiry);
+    isSignedIn = true;
+    isGoogleDriveLoaded = true;
     
-    localStorage.setItem('focusWriterSessionId', sessionId);
-    localStorage.setItem('focusWriterAccessToken', accessToken);
-    localStorage.setItem('focusWriterTokenExpiry', tokenExpiry.toString());
+    // Clear the flag
+    localStorage.removeItem('focusWriterOAuthSuccess');
     
-    window.history.replaceState({}, document.title, window.location.pathname);
+    // Update UI
+    updateDriveUI();
     
-    // ✅ Initialize GAPI first, THEN update UI
-    if (CLIENT_ID && API_KEY) {
-        loadGAPI().then(() => {
-            gapi.client.setToken({access_token: accessToken});
-            isGoogleDriveLoaded = true;
-            
-            updateDriveUI();  // ✅ Update UI AFTER GAPI is loaded
-            
-            if (!TARGET_FOLDER_ID) {
-                showSetupWizardStep2();
-            } else {
-                updateDriveStatus('Connected with persistent session!');
-                loadFromGoogleDrive();
-                setTimeout(() => startBackupTimer(), 2000);
-            }
-        }).catch(error => {
-            console.error('GAPI initialization error:', error);
-            updateDriveStatus('Connected but Drive initialization failed.');
-            updateDriveUI();  // Still update UI even if GAPI fails
-        });
+    if (!TARGET_FOLDER_ID) {
+        showSetupWizardStep2();
     } else {
-        // If no credentials, still mark as connected but show message
-        updateDriveUI();
-        updateDriveStatus('Connected! Set up Google credentials to enable backup.');
+        updateDriveStatus('Connected with persistent session!');
+        loadFromGoogleDrive();
+        setTimeout(() => startBackupTimer(), 2000);
     }
 }
         
