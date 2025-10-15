@@ -1,114 +1,172 @@
 # Big Cat Mellow Writer
 
-A distraction-free writing application with smart productivity features and cloud backup.
+> **A beautiful, distraction-free writing sanctuary with cloud superpowers**
+
+Write without distractions. Track your progress. Never lose your work. All in a sleek, modern interface designed for serious writers.
+
+---
 
 ## Features
 
-### Writing Experience
-- **Distraction-free editor** - Clean, minimal interface with dark theme optimized for long writing sessions
-- **Ultra Focus Mode** - Full-screen view that removes all UI elements except your text
-- **Floating toolbar** - Context-sensitive formatting options appear when you select text
-- **Auto-save** - Your work saves automatically to your browser as you type
+### Pure Writing Experience
+- **Zero-distraction editor** - Gorgeous dark theme that disappears, leaving only your words
+- **Ultra Focus Mode** - Full-screen zen mode that strips away everything but your creativity
+- **Smart floating toolbar** - Formatting tools appear exactly when you need them
+- **Lightning auto-save** - Your work saves instantly as you type, every single keystroke
 
-### Formatting Tools
-- **Bold** (Ctrl+B)
-- **Italic** (Ctrl+I) 
-- **Underline** (Ctrl+U)
-- **Headings** - Convert text to H2 headings
-- **Note brackets** (Ctrl+[) - Insert `[ note ]` with proper spacing for inline annotations
+### Powerful Formatting
+- **Bold** (Ctrl+B) - Make your words stand out
+- **Italic** (Ctrl+I) - Add emphasis and style
+- **Underline** (Ctrl+U) - Highlight what matters
+- **Headings** - Structure your masterpiece
+- **Smart note brackets** (Ctrl+[) - Inline annotations that keep your flow
 
-### Productivity Tracking
-- **Daily word goal** - Set a target and track your progress with a visual countdown
-- **Writing statistics** - Real-time word count, character count, and daily progress
-- **Today's progress** - See how many words you've written in the current session
-- **Automatic daily reset** - Stats reset at midnight to track each new day
+### Motivating Productivity
+- **Visual daily goals** - Set targets and watch your progress in real-time
+- **Live statistics** - Words, characters, and daily milestones at a glance
+- **Session tracking** - See exactly how productive you've been today
+- **Midnight magic** - Stats reset automatically for a fresh start each day
 
-### Cloud Backup
-- **Google Drive integration** - Automatic backup every 5 minutes
-- **Persistent sessions** - Stay logged in for months with refresh token storage
-- **Manual backup** - Force an immediate save to Drive
-- **Cross-device sync** - Load your document from any device
-- **Secure authentication** - Uses OAuth 2.0 with client secret for enhanced security
+### Bulletproof Cloud Backup
+- **Google Drive sync** - Auto-backup every 5 minutes without lifting a finger
+- **Stay logged in forever** - Persistent sessions mean you authenticate once and forget about it
+- **One-click manual save** - Peace of mind when you need it
+- **Work anywhere** - Seamlessly continue on any device
+- **Bank-grade security** - OAuth 2.0 with refresh tokens keeps everything locked down
+
+---
+
+## Quick Start
+
+### Start Writing Immediately
+
+1. Open BCM Writer
+2. Start typing
+3. Your work saves automatically to your browser
+4. Download anytime with Ctrl+S or from the menu
+
+**That's it!** No account required, no setup needed for basic use.
+
+---
+
+## Optional: Cloud Backup Setup
+
+Want your work backed up to Google Drive automatically every 5 minutes?
+
+**[Follow our detailed setup guide →](SETUP.md)**
+
+- Takes 10-15 minutes (one-time setup)
+- Completely free forever
+- You control your own credentials
+- Maximum privacy and security
+
+---
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| Ctrl+B | Bold |
-| Ctrl+I | Italic |
-| Ctrl+U | Underline |
-| Ctrl+[ | Insert note brackets |
-| Ctrl+S | Manual backup (if Drive connected) or download |
-| Ctrl+M | Toggle menu |
-| Esc | Close menu / Exit focus mode |
-
-## Setup
-
-### Basic Use
-1. Open the app and start writing
-2. Your work auto-saves to your browser
-3. Download your text anytime from the menu
-
-### Google Drive Backup (Optional)
-1. Click **Setup Google Drive** in the menu
-2. Follow the guided setup to get credentials from Google Cloud Console:
-   - Create a new project
-   - Enable Google Drive API
-   - Create OAuth client ID and API key
-3. Choose or create a backup folder
-4. Your document will auto-backup every 5 minutes
-
-**Note:** The setup requires a Google Cloud project (free). With client secret configured, you'll stay logged in for months instead of just one hour.
-
-## Storage & Privacy
-
-- **Local storage** - All content saves to your browser automatically
-- **Google Drive** - Optional cloud backup (you control the folder)
-- **No tracking** - Your writing stays private
-- **No account required** - Works immediately without sign-up
-
-## Menu Options
-
-### Google Drive Backup
-- Setup/connect to Google Drive
-- Set backup folder location
-- Load document from Drive
-- Manual backup
-- Disconnect/clear credentials
-
-### Document
-- New document (clears current content)
-- Download as .txt file
-- Ultra Focus Mode toggle
-
-### Statistics
-- Current word and character counts
-- Daily goal setting and progress
-- Words written today
-
-## Technical Notes
-
-- Built for modern browsers (Chrome, Firefox, Safari, Edge)
-- Runs entirely client-side
-- Uses Cloudflare Worker for OAuth token refresh
-- No server-side storage or processing
-- Responsive design works on desktop and mobile
-
-## Tips
-
-- Use **note brackets** (Ctrl+[) for inline TODOs and reminders
-- Set a **daily goal** to build consistent writing habits
-- Enable **Google Drive backup** to never lose your work
-- Use **Ultra Focus Mode** when you need zero distractions
-
-## Known Limitations
-
-- Google Drive backup requires manual credential setup
-- Some browser extensions may interfere with keyboard shortcuts
-- Works best with stable internet for Drive sync
+| **Ctrl+B** | Bold your text |
+| **Ctrl+I** | Italicize |
+| **Ctrl+U** | Underline |
+| **Ctrl+[** | Insert note brackets |
+| **Ctrl+S** | Force backup / download |
+| **Ctrl+M** | Toggle menu |
+| **Esc** | Close menu / Exit focus mode |
 
 ---
 
+## What Makes BCM Writer Different?
+
+### Your Data, Your Rules
+- **Local-first** - Everything saves to your browser instantly
+- **Optional cloud** - YOU control the folder, YOU own the credentials
+- **Zero tracking** - Your words stay 100% private, always
+- **No signup required** - Start writing in literally 2 seconds
+- **Maximum privacy** - Your own Google project = nobody else can touch your data
+
+### Built for Writers
+- Novels and screenplays
+- Daily journaling
+- Blog posts and articles
+- Academic papers
+- Professional writing
+
+### Design Philosophy
+
+BCM Writer believes writing should be:
+- **Simple** - No learning curve, just write
+- **Fast** - Zero lag, infinite smoothness
+- **Private** - Your words, your eyes only
+- **Safe** - Never lose a single word
+- **Peaceful** - No notifications, no social, no distractions
+
+---
+
+## Menu Features
+
+### Cloud Backup Controls
+- Setup/connect Google Drive
+- Choose backup folder
+- Load from cloud
+- Force backup now
+- Disconnect anytime
+
+### Document Actions
+- Fresh start (new document)
+- Download .txt file
+- Ultra Focus Mode
+
+### Progress Dashboard
+- Live word & character counts
+- Set and track daily goals
+- Today's writing streak
+
+---
+
+## Technical Details
+
+- Modern browsers (Chrome, Firefox, Safari, Edge)
+- 100% client-side (blazing fast)
+- Cloudflare Workers for OAuth token refresh
+- Zero server-side storage
+- Beautiful on desktop AND mobile
+- Responsive design
+
+---
+
+## Pro Tips
+
+- Use **note brackets** (Ctrl+[) for quick TODOs without breaking flow
+- Set **daily goals** to build unstoppable writing habits
+- Enable **cloud backup** and never fear data loss
+- **Ultra Focus Mode** when you need to enter the zone
+
+---
+
+## Getting Help
+
+- **Setup Issues?** - Check [SETUP.md](SETUP.md) for detailed instructions
+- **Feature Questions?** - Everything is accessible through the menu (hamburger icon)
+- **Technical Problems?** - Press F12 to open browser console for error messages
+- **Privacy Concerns?** - All code is open source and reviewable
+
+---
+
+## License & Support
+
 **Version:** 1.0  
-**License:** Personal/Educational Use  
-**Support:** Check browser console (F12) for error messages if features aren't working
+**License:** Free for Personal/Educational Use  
+**Privacy:** No tracking, no analytics, no data collection
+
+---
+
+
+
+### **Write More. Worry Less. Create Fearlessly.**
+
+Made with love for writers who deserve better tools
+
+[Setup Google Drive Backup →](SETUP.md)
+
+

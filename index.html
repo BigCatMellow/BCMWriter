@@ -1794,63 +1794,59 @@ function storeRefreshToken(authCode) {
             openSetupModal('Setup Google Drive', wizardHTML);
         }
 
-        function showDetailedSetupInstructions() {
-            const instructions = `
-                <h4>Getting Your Credentials</h4>
-                
-                <div class="setup-info-box">
-                    <p style="margin: 0;"><strong>Don't worry!</strong> This is a one-time setup and takes about 5 minutes.</p>
-                </div>
-                
-                <ol>
-                    <li>
-                        <strong>Open Google Cloud Console:</strong><br>
-                        <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a>
-                    </li>
-                    
-                    <li>
-                        <strong>Create a Project:</strong><br>
-                        Click "Select a project" at the top → "New Project"<br>
-                        Name it "BCM Writer" → Click "Create"
-                    </li>
-                    
-                    <li>
-                        <strong>Enable Google Drive API:</strong><br>
-                        Go to "APIs & Services" → "Enable APIs and Services"<br>
-                        Search for "Google Drive API" → Click "Enable"
-                    </li>
-                    
-                    <li>
-                        <strong>Create OAuth Credentials:</strong><br>
-                        Go to "Credentials" → "Create Credentials" → "OAuth client ID"<br>
-                        If asked, configure consent screen (External, add your email)<br>
-                        Application type: "Web application"<br>
-                        Add authorized origin: <code>https://bigcatmellow.github.io</code><br>
-                        Copy the <strong>Client ID</strong> AND <strong>Client Secret</strong>
-                    </li>
-                    
-                    <li>
-                        <strong>Create API Key:</strong><br>
-                        "Create Credentials" → "API Key"<br>
-                        Restrict it to "Google Drive API" (recommended)<br>
-                        Copy the <strong>API Key</strong>
-                    </li>
-                    
-                    <li>
-                        <strong>Paste All Three Here:</strong><br>
-                        Return to this app and paste all three credentials
-                    </li>
-                </ol>
-                
-                <div class="setup-info-box" style="border-left-color: #66cc66; background: #2d4a2d;">
-                    <p style="margin: 0; font-size: 12px;"><strong>Note:</strong> With Client Secret, you'll stay signed in for months instead of just 1 hour!</p>
-                </div>
-                
-                <button onclick="showSetupWizardStep1()" class="primary">Back to Setup Form</button>
-            `;
-            
-            openSetupModal('Setup Instructions', instructions);
-        }
+function showDetailedSetupInstructions() {
+    // Open the SETUP.md directly to the setup section in a new tab
+    window.open('SETUP.md', '_blank');
+    
+    // Show a helpful message in the modal
+    const instructions = `
+        <h4>Setup Guide Opened</h4>
+        
+        <div class="setup-success-box">
+            <p style="margin: 0;">📖 The detailed setup guide has been opened in a new tab!</p>
+        </div>
+        
+        <p>Follow the comprehensive step-by-step instructions in the guide, then come back here to enter your credentials.</p>
+        
+        <div class="setup-info-box">
+            <p style="margin: 0; font-size: 12px;"><strong>What you'll get:</strong></p>
+            <ul style="margin: 10px 0 0 20px; padding: 0; font-size: 12px; line-height: 1.8;">
+                <li>Detailed instructions for every step</li>
+                <li>Screenshots and explanations</li>
+                <li>Common issues and solutions</li>
+                <li>FAQ section with 20+ questions</li>
+                <li>Setup verification checklist</li>
+            </ul>
+        </div>
+        
+        <div class="setup-info-box" style="background: #3a3a3a; border-left-color: #66aacc;">
+            <p style="margin: 0; font-size: 12px;"><strong>Quick Overview:</strong></p>
+            <ol style="margin: 10px 0 0 20px; padding: 0; font-size: 12px; line-height: 1.8;">
+                <li>Create a Google Cloud project</li>
+                <li>Enable Google Drive API</li>
+                <li>Configure OAuth consent screen</li>
+                <li>Create OAuth Client ID (get Client ID & Secret)</li>
+                <li>Create API Key</li>
+                <li>Return here and paste all three credentials</li>
+            </ol>
+        </div>
+        
+        <p style="text-align: center; margin: 20px 0;">
+            <a href="SETUP.md" 
+               target="_blank" 
+               style="display: inline-block; padding: 10px 20px; background: #4a7c4a; color: white; text-decoration: none; border-radius: 4px; font-weight: 500; font-size: 13px;">
+                📖 Reopen Setup Guide
+            </a>
+        </p>
+        
+        <div class="setup-button-group">
+            <button onclick="showSetupWizardStep1()" class="primary">Enter Credentials</button>
+            <button onclick="closeSetupModal()" class="secondary">Close</button>
+        </div>
+    `;
+    
+    openSetupModal('Setup Instructions', instructions);
+}
 
         function saveCredentialsAndContinue() {
             const clientId = document.getElementById('clientIdInput').value.trim();
@@ -2271,7 +2267,7 @@ function disconnectGoogleDrive() {
             }
             
             const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-            const content = activeEditor.innerText || activeEditor.textContent || '';
+            const content = activeEditor.innerHTML; 
             
             localStorage.setItem('focusWriterContent', activeEditor.innerHTML);
             localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
@@ -2297,7 +2293,7 @@ function disconnectGoogleDrive() {
             
             const form = new FormData();
             form.append('metadata', new Blob([JSON.stringify(fileMetadata)], {type: 'application/json'}));
-            form.append('file', new Blob([content], {type: 'text/plain'}));
+            form.append('file', new Blob([content], {type: 'text/html'}));
             
             fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,parents', {
                 method: 'POST',
