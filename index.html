@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-	<link rel="manifest" href="/manifest.json">
+	<link rel="manifest" href="/BCMWriter/manifest.json">
 
     <style>
         * {
@@ -946,11 +946,10 @@
         <div class="menu-section">
             <h3>Google Drive Backup</h3>
             <div class="menu-buttons">
-                <button class="menu-button-item" onclick="setupOrConnect()" id="driveConnectBtn">Setup Google Drive</button>
+                <button class="menu-button-item" onclick="setupOrConnect()" id="driveConnectBtn">Connect Google Drive</button>
                 <button class="menu-button-item" onclick="selectBackupFolder()" id="driveFolderBtn" style="display: none;">Set Backup Folder</button>
                 <button class="menu-button-item" onclick="loadFromGoogleDrive()" id="driveLoadBtn" style="display: none;">Load from Drive</button>
                 <button class="menu-button-item" onclick="manualBackup()" id="driveBackupBtn" style="display: none;">Manual Backup</button>
-                <button class="menu-button-item" onclick="clearGoogleCredentials()" id="driveClearBtn" style="display: none;">Clear Credentials</button>
                 <button class="menu-button-item" onclick="disconnectGoogleDrive()" id="driveDisconnectBtn" style="display: none;">Disconnect</button>
             </div>
             <div class="status-message" id="driveStatus">Click "Setup Google Drive" to configure automatic backups</div>
@@ -1091,10 +1090,17 @@ let accessToken = null;
 let tokenExpiry = null;
 let currentFileId = null;
 let sessionId = localStorage.getItem('focusWriterSessionId') || null;
-let CLIENT_ID = localStorage.getItem('focusWriterClientId') || null;
-let API_KEY = localStorage.getItem('focusWriterApiKey') || null;
-let CLIENT_SECRET = localStorage.getItem('focusWriterClientSecret') || null;
+// No more client-side credentials - Worker handles OAuth
 let TARGET_FOLDER_ID = localStorage.getItem('focusWriterFolderId') || null;
+
+// Clean up old insecure credentials on load
+if (localStorage.getItem('focusWriterClientId')) {
+    console.log('🧹 Cleaning up old credentials...');
+    localStorage.removeItem('focusWriterClientId');
+    localStorage.removeItem('focusWriterClientSecret');
+    localStorage.removeItem('focusWriterApiKey');
+    localStorage.removeItem('focusWriterAccessToken');
+    localStorage.removeItem('focusWriterTokenExpiry');
 
 const WORKER_URL = 'https://bcmwriter.goldenjanitors.workers.dev';
 const SCOPES = 'https://www.googleapis.com/auth/drive';
@@ -1167,7 +1173,7 @@ function showInstallButton() {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
+    navigator.serviceWorker.register('/BCMWriter/service-worker.js'
       .then((registration) => {
         console.log('✓ Service Worker registered:', registration.scope);
       })
@@ -2063,13 +2069,14 @@ function refreshAccessToken() {
 }
 
 function connectGoogleDrive() {
-    if (!CLIENT_ID || !API_KEY) {
-        showSetupWizardStep1();
-        return;
-    }
-
     updateDriveStatus('Connecting to Google Drive...');
-    window.location.href = `${WORKER_URL}/auth/google/start`;
+    
+    // Generate CSRF protection token
+    const state = crypto.randomUUID();
+    sessionStorage.setItem('oauth_state', state);
+    
+    // Redirect to Worker for secure OAuth
+    window.location.href = `${WORKER_URL}/auth/start?state=${state}`;
 }
 
 function disconnectGoogleDrive() {
@@ -2098,111 +2105,19 @@ function disconnectGoogleDrive() {
 }
 
 function setupOrConnect() {
-    if (!CLIENT_ID || !API_KEY) {
-        showSetupWizardStep1();
-    } else if (!isSignedIn) {
+    if (!isSignedIn) {
+        // Not signed in - start OAuth flow
         connectGoogleDrive();
     } else if (!TARGET_FOLDER_ID) {
+        // Signed in but no folder set
         showSetupWizardStep2();
     } else {
-        connectGoogleDrive();
+        // Already fully set up
+        updateDriveStatus('✓ Already connected to Google Drive');
     }
 }
 
-function showSetupWizardStep1() {
-    const currentClientId = CLIENT_ID || '';
-    const currentApiKey = API_KEY || '';
-    const currentClientSecret = CLIENT_SECRET || '';
-    
-    const wizardHTML = `
-        <h4>Step 1: Google Cloud Setup</h4>
-        
-        <p>To enable Google Drive backups with persistent login, you need your Google Cloud credentials.</p>
-        
-        <button onclick="showDetailedSetupInstructions()" class="primary" style="margin-bottom: 20px;">
-            Show Me How to Get Credentials
-        </button>
-        
-        <label>Client ID:</label>
-        <input type="text" id="clientIdInput" value="${currentClientId}" placeholder="xxx.apps.googleusercontent.com">
-        
-        <label>Client Secret:</label>
-        <input type="password" id="clientSecretInput" value="${currentClientSecret}" placeholder="GOCSPX-xxx...">
-        
-        <label>API Key:</label>
-        <input type="text" id="apiKeyInput" value="${currentApiKey}" placeholder="AIza...">
-        
-        <div class="setup-button-group">
-            <button onclick="saveCredentialsAndContinue()" class="primary">Save & Continue</button>
-            <button onclick="skipSetup()" class="secondary">Skip (No Backups)</button>
-        </div>
-    `;
-    
-    openSetupModal('Setup Google Drive', wizardHTML);
-}
 
-function showDetailedSetupInstructions() {
-    window.open('SETUP.md', '_blank');
-    
-    const instructions = `
-        <h4>Setup Guide Opened</h4>
-        
-        <div class="setup-success-box">
-            <p style="margin: 0;">📖 The detailed setup guide has been opened in a new tab!</p>
-        </div>
-        
-        <p>Follow the comprehensive step-by-step instructions in the guide, then come back here to enter your credentials.</p>
-        
-        <div class="setup-button-group">
-            <button onclick="showSetupWizardStep1()" class="primary">Enter Credentials</button>
-            <button onclick="closeSetupModal()" class="secondary">Close</button>
-        </div>
-    `;
-    
-    openSetupModal('Setup Instructions', instructions);
-}
-
-function saveCredentialsAndContinue() {
-    const clientId = document.getElementById('clientIdInput').value.trim();
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
-    const clientSecret = document.getElementById('clientSecretInput').value.trim();
-    
-    if (!clientId || !apiKey) {
-        alert('Please enter both Client ID and API Key');
-        return;
-    }
-    
-    CLIENT_ID = clientId;
-    API_KEY = apiKey;
-    CLIENT_SECRET = clientSecret;
-    
-    localStorage.setItem('focusWriterClientId', CLIENT_ID);
-    localStorage.setItem('focusWriterApiKey', API_KEY);
-    if (CLIENT_SECRET) {
-        localStorage.setItem('focusWriterClientSecret', CLIENT_SECRET);
-    }
-    
-    updateDriveUI();
-    
-    const successHTML = `
-        <div class="setup-success-box">
-            <p style="margin: 0;"><strong>Credentials Saved!</strong> Connecting to Google Drive...</p>
-        </div>
-        <p>Please sign in with your Google account in the popup window.</p>
-    `;
-    
-    openSetupModal('Connecting...', successHTML);
-    
-    setTimeout(() => {
-        connectGoogleDrive();
-    }, 1500);
-}
-
-function skipSetup() {
-    closeSetupModal();
-    updateDriveStatus('Google Drive backup skipped. Your work will only be saved locally in your browser.');
-    updateDriveUI();
-}
 
 function showSetupWizardStep2() {
     const wizardHTML = `
@@ -2359,34 +2274,10 @@ function closeSetupAndStartWriting() {
     currentEditor.focus();
 }
 
-function clearGoogleCredentials() {
-    if (confirm('Remove saved Google Drive credentials, session, and folder settings?')) {
-        localStorage.removeItem('focusWriterClientId');
-        localStorage.removeItem('focusWriterClientSecret');
-        localStorage.removeItem('focusWriterApiKey');
-        localStorage.removeItem('focusWriterFolderId');
-        localStorage.removeItem('focusWriterSessionId');
-        localStorage.removeItem('focusWriterAccessToken');
-        localStorage.removeItem('focusWriterTokenExpiry');
-        CLIENT_ID = null;
-        CLIENT_SECRET = null;
-        API_KEY = null;
-        TARGET_FOLDER_ID = null;
-        sessionId = null;
-        disconnectGoogleDrive();
-        updateDriveStatus('Credentials cleared. Click "Setup Google Drive" to configure.');
-        updateDriveUI();
-    }
-}
-
 function selectBackupFolder() {
-    if (!CLIENT_ID || !API_KEY) {
-        updateDriveStatus('Please setup Google Drive credentials first');
-        return;
-    }
-    
     if (!isSignedIn) {
         updateDriveStatus('Please connect to Google Drive first');
+        connectGoogleDrive();
         return;
     }
     
@@ -2401,32 +2292,24 @@ function updateDriveUI() {
     const clearBtn = document.getElementById('driveClearBtn');
     const loadBtn = document.getElementById('driveLoadBtn');
     
-    if (!CLIENT_ID || !API_KEY) {
+    if (isSignedIn && sessionId) {
+        // Connected state
+        if (connectBtn) connectBtn.style.display = 'none';
+        if (disconnectBtn) disconnectBtn.style.display = 'block';
+        if (backupBtn) backupBtn.style.display = 'block';
+        if (folderBtn) folderBtn.style.display = 'block';
+        if (clearBtn) clearBtn.style.display = 'none'; // Hide clear button (no credentials to clear)
+        if (loadBtn) loadBtn.style.display = 'block';
+    } else {
+        // Not connected state
         if (connectBtn) {
-            connectBtn.textContent = 'Setup Google Drive';
+            connectBtn.textContent = 'Connect Google Drive';
             connectBtn.style.display = 'block';
         }
         if (disconnectBtn) disconnectBtn.style.display = 'none';
         if (backupBtn) backupBtn.style.display = 'none';
         if (folderBtn) folderBtn.style.display = 'none';
         if (clearBtn) clearBtn.style.display = 'none';
-        if (loadBtn) loadBtn.style.display = 'none';
-    } else if (isSignedIn) {
-        if (connectBtn) connectBtn.style.display = 'none';
-        if (disconnectBtn) disconnectBtn.style.display = 'block';
-        if (backupBtn) backupBtn.style.display = 'block';
-        if (folderBtn) folderBtn.style.display = 'block';
-        if (clearBtn) clearBtn.style.display = 'block';
-        if (loadBtn) loadBtn.style.display = 'block';
-    } else {
-        if (connectBtn) {
-            connectBtn.textContent = 'Connect Drive';
-            connectBtn.style.display = 'block';
-        }
-        if (disconnectBtn) disconnectBtn.style.display = 'none';
-        if (backupBtn) backupBtn.style.display = 'none';
-        if (folderBtn) folderBtn.style.display = 'block';
-        if (clearBtn) clearBtn.style.display = 'block';
         if (loadBtn) loadBtn.style.display = 'none';
     }
 }
@@ -2573,15 +2456,22 @@ if (errorParam) {
 }
 
 if (sessionIdParam) {
-    sessionId = sessionIdParam;
-    localStorage.setItem('focusWriterSessionId', sessionId);
-    isSignedIn = true;
-    isGoogleDriveLoaded = true;
+    // Verify CSRF state
+    const stateParam = urlParams.get('state');
+    const storedState = sessionStorage.getItem('oauth_state');
     
-    updateDriveUI();
-    updateDriveStatus('✓ Connected to Google Drive!');
-    
-    window.history.replaceState({}, document.title, window.location.pathname);
+    if (stateParam && storedState && stateParam === storedState) {
+        // Valid OAuth callback
+        sessionStorage.removeItem('oauth_state');
+        
+        sessionId = sessionIdParam;
+        localStorage.setItem('focusWriterSessionId', sessionId);
+        isSignedIn = true;
+        
+        updateDriveUI();
+        updateDriveStatus('✓ Connected to Google Drive!');
+        
+        window.history.replaceState({}, document.title, window.location.pathname);
     
     if (!TARGET_FOLDER_ID) {
         showSetupWizardStep2();
@@ -2591,21 +2481,17 @@ if (sessionIdParam) {
     }
 }
 
-// Check if we have existing credentials
-else if (CLIENT_ID && API_KEY) {
-    if (localStorage.getItem('focusWriterSessionId')) {
-        sessionId = localStorage.getItem('focusWriterSessionId');
-        isSignedIn = true;
-        updateDriveUI();
-        
-        if (TARGET_FOLDER_ID) {
-            updateDriveStatus('Connected to Google Drive');
-            startBackupTimer();
-        } else {
-            updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
-        }
+// Check if we have existing session
+if (localStorage.getItem('focusWriterSessionId')) {
+    sessionId = localStorage.getItem('focusWriterSessionId');
+    isSignedIn = true;
+    updateDriveUI();
+    
+    if (TARGET_FOLDER_ID) {
+        updateDriveStatus('Connected to Google Drive');
+        startBackupTimer();
     } else {
-        updateDriveUI();
+        updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
     }
 } else {
     updateDriveUI();
@@ -2645,16 +2531,11 @@ window.setupOrConnect = setupOrConnect;
 window.selectBackupFolder = selectBackupFolder;
 window.loadFromGoogleDrive = loadFromGoogleDrive;
 window.manualBackup = manualBackup;
-window.clearGoogleCredentials = clearGoogleCredentials;
 window.disconnectGoogleDrive = disconnectGoogleDrive;
 window.newDocument = newDocument;
 window.saveDocument = saveDocument;
 window.toggleFocusMode = toggleFocusMode;
 window.closeSetupModal = closeSetupModal;
-window.showDetailedSetupInstructions = showDetailedSetupInstructions;
-window.saveCredentialsAndContinue = saveCredentialsAndContinue;
-window.skipSetup = skipSetup;
-window.showSetupWizardStep1 = showSetupWizardStep1;
 window.showSetupWizardStep2 = showSetupWizardStep2;
 window.showExistingFolderInstructions = showExistingFolderInstructions;
 window.saveExistingFolder = saveExistingFolder;
