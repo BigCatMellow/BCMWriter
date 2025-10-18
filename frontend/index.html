@@ -1,0 +1,2668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="theme-color" content="#1a1a1a">
+    <title>BCM Writer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+	<link rel="manifest" href="/manifest.json">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .writing-area {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            transition: margin-left 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .writing-area.menu-open {
+            margin-left: 350px;
+        }
+
+.editor-container {
+    width: min(800px, 90vw);
+    height: 80vh;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    position: relative;  /* Add this line */
+}
+
+        .editor {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+            padding: 40px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 19px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: #e8e8e8;
+            background: transparent;
+            resize: none;
+            overflow-y: auto;
+            letter-spacing: 0.01em;
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+            border-radius: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: #444 #1a1a1a;
+        }
+
+        .editor::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .editor::-webkit-scrollbar-track {
+            background: #1a1a1a;
+            border-radius: 4px;
+        }
+
+        .editor::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .editor::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .editor::-webkit-scrollbar-thumb:active {
+            background: #666;
+        }
+
+        .editor:focus {
+            outline: none;
+        }
+
+        .editor::placeholder {
+            color: #555555;
+            font-style: normal;
+        }
+
+        .menu-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            color: #ffffff;
+            width: 44px;
+            height: 44px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease, opacity 0.25s ease;
+            opacity: 0.7;
+        }
+
+.menu-button.active {
+    left: 286px;  /* 350px (menu width) - 44px (button width) - 20px (margin) */
+}
+
+        .menu-button:hover {
+            background: #3a3a3a;
+            opacity: 1;
+        }
+
+        .menu-button .hamburger {
+            width: 18px;
+            height: 14px;
+            position: relative;
+        }
+
+        .menu-button .hamburger span {
+            display: block;
+            height: 2px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 1px;
+            position: absolute;
+            transition: all 0.2s ease;
+        }
+
+        .menu-button .hamburger span:nth-child(1) { top: 0; }
+        .menu-button .hamburger span:nth-child(2) { top: 6px; }
+        .menu-button .hamburger span:nth-child(3) { top: 12px; }
+
+        .menu-button.active .hamburger span:nth-child(1) {
+            transform: rotate(45deg);
+            top: 6px;
+        }
+
+        .menu-button.active .hamburger span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .menu-button.active .hamburger span:nth-child(3) {
+            transform: rotate(-45deg);
+            top: 6px;
+        }
+
+        .save-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            color: #cccccc;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            z-index: 1000;
+            opacity: 0.7;
+            transition: all 0.2s ease;
+        }
+
+        .save-status.saved {
+            border-color: #2d5a2d;
+            color: #66cc66;
+        }
+
+        .save-status.saving {
+            border-color: #5a4d2d;
+            color: #ccaa66;
+        }
+
+        .save-status.backup {
+            border-color: #2d4a5a;
+            color: #66aacc;
+        }
+
+        .save-status.loading {
+            border-color: #5a2d5a;
+            color: #cc66cc;
+        }
+
+        .menu-panel {
+            position: fixed;
+            top: 0;
+            left: -350px;
+            width: 350px;
+            height: 100vh;
+            background: #2a2a2a;
+            border-right: 1px solid #3a3a3a;
+            z-index: 999;
+			overflow-y: auto;
+			transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .menu-panel.open {
+            left: 0;
+        }
+
+        .menu-header {
+            padding: 20px;
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        .menu-title {
+            color: #ffffff;
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .menu-subtitle {
+            color: #888888;
+            font-size: 13px;
+        }
+
+        .menu-section {
+            padding: 20px;
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        .menu-section:last-child {
+            border-bottom: none;
+        }
+
+        .menu-section h3 {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .menu-button-item {
+            background: #3a3a3a;
+            border: 1px solid #4a4a4a;
+            color: #ffffff;
+            padding: 12px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            text-align: center;
+        }
+
+        .menu-button-item:hover {
+            background: #4a4a4a;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            background: #3a3a3a;
+            padding: 12px;
+            border-radius: 4px;
+            text-align: center;
+            cursor: default;
+        }
+
+        .stat-item.clickable {
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .stat-item.clickable:hover {
+            background: #4a4a4a;
+        }
+
+        .stat-item.goal-active {
+            background: linear-gradient(135deg, #2d4a2d 0%, #3a3a3a 100%);
+            border: 1px solid #4a7c4a;
+        }
+
+        .stat-number {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            display: block;
+        }
+
+        .stat-number.goal-number {
+            color: #66cc66;
+        }
+
+        .stat-label {
+            color: #888888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .stat-sublabel {
+            color: #666666;
+            font-size: 10px;
+            margin-top: 2px;
+            display: block;
+        }
+
+        .goal-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            width: min(400px, 90vw);
+            z-index: 1001;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        .goal-modal.active {
+            display: block;
+        }
+
+        .goal-modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .goal-modal-header h2 {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .goal-modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .goal-modal-close:hover {
+            background: #3a3a3a;
+            color: #fff;
+        }
+
+        .goal-modal-content {
+            padding: 30px;
+        }
+
+        .goal-modal-content p {
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .goal-modal-content label {
+            display: block;
+            margin-bottom: 8px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .goal-modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border-color 0.2s ease;
+        }
+
+        .goal-modal-content input:focus {
+            outline: none;
+            border-color: #66aacc;
+        }
+
+        .goal-modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .goal-modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .goal-modal-buttons .primary {
+            background: #4a7c4a;
+            color: #fff;
+        }
+
+        .goal-modal-buttons .primary:hover {
+            background: #5a8c5a;
+        }
+
+        .goal-modal-buttons .secondary {
+            background: #3a3a3a;
+            color: #fff;
+        }
+
+        .goal-modal-buttons .secondary:hover {
+            background: #4a4a4a;
+        }
+
+        .goal-modal-buttons .danger {
+            background: #7c4a4a;
+            color: #fff;
+        }
+
+        .goal-modal-buttons .danger:hover {
+            background: #8c5a5a;
+        }
+
+        .focus-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+        }
+
+        .focus-mode .editor {
+            background: #0a0a0a;
+            color: #e8e8e8;
+            font-size: 21px;
+            font-weight: 400;
+            padding: 80px;
+            height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            letter-spacing: -0.01em;
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+        }
+
+        .focus-mode .editor::placeholder {
+            color: #444444;
+        }
+
+        .focus-exit {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            color: #ffffff;
+            padding: 12px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 2001;
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0.7;
+        }
+
+        .focus-exit:hover {
+            background: #3a3a3a;
+            opacity: 1;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .setup-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            width: min(600px, 90vw);
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1001;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        .setup-modal.active {
+            display: block;
+        }
+
+        .setup-modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setup-modal-header h2 {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .setup-modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .setup-modal-close:hover {
+            background: #3a3a3a;
+            color: #fff;
+        }
+
+        .setup-modal-content {
+            padding: 30px;
+        }
+
+        .setup-modal-content h4 {
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .setup-modal-content p {
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .setup-modal-content ol {
+            margin-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        .setup-modal-content li {
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+
+        .setup-modal-content strong {
+            color: #fff;
+        }
+
+        .setup-modal-content code {
+            background: #1a1a1a;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #66aacc;
+        }
+
+        .setup-modal-content label {
+            display: block;
+            margin-bottom: 8px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .setup-modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+            transition: border-color 0.2s ease;
+        }
+
+        .setup-modal-content input:focus {
+            outline: none;
+            border-color: #66aacc;
+        }
+
+        .setup-modal-content button {
+            width: 100%;
+            padding: 12px;
+            background: #4a4a4a;
+            border: none;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .setup-modal-content button:hover {
+            background: #5a5a5a;
+        }
+
+        .setup-modal-content button.primary {
+            background: #4a7c4a;
+            border-color: #5a8c5a;
+        }
+
+        .setup-modal-content button.primary:hover {
+            background: #5a8c5a;
+        }
+
+        .setup-modal-content button.secondary {
+            background: #3a3a3a;
+            border: 1px solid #4a4a4a;
+        }
+
+        .setup-modal-content button.secondary:hover {
+            background: #4a4a4a;
+        }
+
+        .setup-info-box {
+            background: #3a3a3a;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 3px solid #66aacc;
+            margin-bottom: 20px;
+        }
+
+        .setup-success-box {
+            background: #2d4a2d;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 3px solid #66cc66;
+            margin-bottom: 20px;
+        }
+
+        .setup-button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .setup-button-group button {
+            flex: 1;
+            margin-top: 0;
+        }
+
+        .status-message {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888888;
+            max-height: 150px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+
+        .status-message a {
+            color: #66aacc;
+            text-decoration: none;
+        }
+
+        .status-message a:hover {
+            text-decoration: underline;
+        }
+
+        .backup-timer {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .floating-toolbar {
+            position: absolute;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            padding: 6px;
+            display: none;
+            z-index: 1500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            gap: 4px;
+            flex-direction: row;
+            align-items: center;
+        }
+
+        .floating-toolbar.active {
+            display: flex;
+        }
+
+        .floating-toolbar-btn {
+            background: transparent;
+            border: none;
+            color: #cccccc;
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .floating-toolbar-btn:hover {
+            background: #3a3a3a;
+            color: #ffffff;
+        }
+
+        .floating-toolbar-btn.active {
+            background: #4a4a4a;
+            color: #ffffff;
+        }
+
+        .floating-toolbar-divider {
+            width: 1px;
+            height: 20px;
+            background: #3a3a3a;
+            margin: 0 4px;
+        }
+		
+		.goal-countdown {
+    position: absolute;
+    bottom: 15px;
+    right: 20px;
+    font-size: 13px;
+    color: #666666;
+    font-weight: 400;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.goal-countdown.active {
+    opacity: 1;
+}
+
+.goal-countdown.complete {
+    opacity: 0;
+}
+
+        @media (max-width: 768px) {
+            .writing-area {
+                padding: 10px;
+            }
+            
+            .editor-container {
+                width: 100%;
+                height: 85vh;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+            }
+            
+            .editor {
+                padding: 20px;
+                font-size: 16px;
+            }
+
+            .menu-panel {
+                width: 100%;
+                left: -100%;
+            }
+
+            .writing-area.menu-open {
+                margin-left: 0;
+            }
+
+            .focus-mode .editor {
+                padding: 20px;
+                font-size: 18px;
+            }
+
+            .setup-modal {
+                width: 95vw;
+                max-height: 90vh;
+            }
+
+            .setup-modal-content {
+                padding: 20px;
+            }
+
+            .setup-button-group {
+                flex-direction: column;
+            }
+
+            .setup-button-group button {
+                width: 100%;
+            }
+			
+			
+        }
+		
+		
+		.goal-progress-float {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    padding: 12px 16px;
+    border-radius: 6px;
+    display: none;
+    z-index: 1000;
+}
+
+.goal-progress-float.active {
+    display: block;
+}
+
+.goal-progress-number {
+    font-size: 24px;
+    font-weight: 600;
+    color: #66cc66;
+    display: block;
+}
+
+.goal-progress-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.goal-progress-bar-container {
+    width: 100%;
+    height: 4px;
+    background: #3a3a3a;
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.goal-progress-bar {
+    height: 100%;
+    background: #66cc66;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+    </style>
+</head>
+<body>
+    <div class="writing-area" id="writingArea">
+<div class="editor-container">
+    <div class="editor" 
+         contenteditable="true" 
+         id="editor"
+         placeholder="Start writing...">
+    </div>
+    <div class="goal-countdown" id="goalCountdown">500 remaining</div>
+</div>
+        </div>
+    </div>
+
+    <button class="menu-button" id="menuButton">
+        <div class="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </button>
+
+    <div class="save-status saved" id="saveStatus">Saved</div>
+
+    <div class="menu-panel" id="menuPanel">
+        <div class="menu-header">
+            <div class="menu-title">Mellow Writer</div>
+            <div class="menu-subtitle">Distraction-free writing with auto-backup</div>
+        </div>
+
+        <div class="menu-section">
+            <h3>Google Drive Backup</h3>
+            <div class="menu-buttons">
+                <button class="menu-button-item" onclick="setupOrConnect()" id="driveConnectBtn">Setup Google Drive</button>
+                <button class="menu-button-item" onclick="selectBackupFolder()" id="driveFolderBtn" style="display: none;">Set Backup Folder</button>
+                <button class="menu-button-item" onclick="loadFromGoogleDrive()" id="driveLoadBtn" style="display: none;">Load from Drive</button>
+                <button class="menu-button-item" onclick="manualBackup()" id="driveBackupBtn" style="display: none;">Manual Backup</button>
+                <button class="menu-button-item" onclick="clearGoogleCredentials()" id="driveClearBtn" style="display: none;">Clear Credentials</button>
+                <button class="menu-button-item" onclick="disconnectGoogleDrive()" id="driveDisconnectBtn" style="display: none;">Disconnect</button>
+            </div>
+            <div class="status-message" id="driveStatus">Click "Setup Google Drive" to configure automatic backups</div>
+            <div class="backup-timer" id="backupTimer"></div>
+        </div>
+
+        <div class="menu-section">
+            <h3>Document</h3>
+            <div class="menu-buttons">
+                <button class="menu-button-item" onclick="newDocument()">New Document</button>
+                <button class="menu-button-item" onclick="saveDocument()">Download Text</button>
+            </div>
+        </div>
+
+        <div class="menu-section">
+            <h3>Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-number" id="wordCount">0</span>
+                    <span class="stat-label">Words</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="charCount">0</span>
+                    <span class="stat-label">Characters</span>
+                </div>
+                <div class="stat-item clickable" id="goalStatItem">
+                    <span class="stat-number" id="goalNumber">Set Goal</span>
+                    <span class="stat-label">Daily Goal</span>
+                    <span class="stat-sublabel" id="goalSubtext">Click to set</span>
+                </div>
+                <div class="stat-item" id="todayStatItem" style="display: none;">
+                    <span class="stat-number" id="todayNumber">0</span>
+                    <span class="stat-label">Today</span>
+                    <span class="stat-sublabel" id="todaySubtext">words written</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <div class="goal-modal" id="goalModal">
+        <div class="goal-modal-header">
+            <h2 id="goalModalTitle">Set Daily Goal</h2>
+            <button class="goal-modal-close" id="goalModalCloseBtn">&times;</button>
+        </div>
+        <div class="goal-modal-content">
+            <p>Set your daily writing goal to track your progress and stay motivated.</p>
+            
+            <label>Daily Word Count Goal:</label>
+            <input type="number" 
+                   id="goalModalInput" 
+                   placeholder="e.g., 500" 
+                   min="1" 
+                   max="100000">
+            
+            <div class="goal-modal-buttons">
+                <button class="primary" id="setGoalBtn">Set Goal</button>
+                <button class="secondary" id="cancelGoalBtn">Cancel</button>
+            </div>
+            
+            <div class="goal-modal-buttons" id="goalActiveButtons" style="display: none; margin-top: 10px;">
+                <button class="danger" id="clearGoalBtn">Clear Goal</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="floating-toolbar" id="floatingToolbar">
+        <button class="floating-toolbar-btn" onclick="applyMarkdown('bold')" title="Bold (Ctrl+B)">
+            <strong>B</strong>
+        </button>
+        <button class="floating-toolbar-btn" onclick="applyMarkdown('italic')" title="Italic (Ctrl+I)">
+            <em>I</em>
+        </button>
+        <button class="floating-toolbar-btn" onclick="applyMarkdown('underline')" title="Underline (Ctrl+U)">
+            <u>U</u>
+        </button>
+        <div class="floating-toolbar-divider"></div>
+        <button class="floating-toolbar-btn" onclick="applyMarkdown('heading')" title="Heading">
+            H
+        </button>
+        <button class="floating-toolbar-btn" onclick="applyMarkdown('note')" title="Note [text]">
+            [ ]
+        </button>
+    </div>
+
+    <div class="setup-modal" id="setupModal">
+        <div class="setup-modal-header">
+            <h2 id="setupModalTitle">Setup Google Drive</h2>
+            <button class="setup-modal-close" onclick="closeSetupModal()">&times;</button>
+        </div>
+        <div class="setup-modal-content" id="setupModalContent">
+        </div>
+    </div>
+
+    <div class="focus-mode" id="focusMode">
+        <button class="focus-exit" onclick="toggleFocusMode()">Exit Ultra Focus</button>
+        <div class="editor" 
+             contenteditable="true" 
+             id="focusEditor"
+             placeholder="Pure focus. Just you and your words.">
+        </div>
+    </div>
+	
+	<div class="goal-progress-float" id="goalProgressFloat">
+    <span class="goal-progress-number" id="goalProgressNumber">0</span>
+    <span class="goal-progress-label" id="goalProgressLabel">remaining</span>
+    <div class="goal-progress-bar-container">
+        <div class="goal-progress-bar" id="goalProgressBar"></div>
+    </div>
+</div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+// ========================================
+// INITIALIZATION & VARIABLES
+// ========================================
+
+let currentEditor = document.getElementById('editor');
+let focusEditor = document.getElementById('focusEditor');
+let isInFocusMode = false;
+let saveTimeout;
+let isMenuOpen = false;
+let isOnline = navigator.onLine;
+let pendingSyncs = JSON.parse(localStorage.getItem('pendingSyncs') || '[]');
+
+const saveStatusElement = document.getElementById('saveStatus');
+const menuPanel = document.getElementById('menuPanel');
+const menuButton = document.getElementById('menuButton');
+const overlay = document.getElementById('overlay');
+const writingArea = document.getElementById('writingArea');
+
+// Google Drive variables
+let isGoogleDriveLoaded = false;
+let isSignedIn = false;
+let accessToken = null;
+let tokenExpiry = null;
+let currentFileId = null;
+let sessionId = localStorage.getItem('focusWriterSessionId') || null;
+let CLIENT_ID = localStorage.getItem('focusWriterClientId') || null;
+let API_KEY = localStorage.getItem('focusWriterApiKey') || null;
+let CLIENT_SECRET = localStorage.getItem('focusWriterClientSecret') || null;
+let TARGET_FOLDER_ID = localStorage.getItem('focusWriterFolderId') || null;
+
+const WORKER_URL = 'https://bcmwriter.goldenjanitors.workers.dev';
+const SCOPES = 'https://www.googleapis.com/auth/drive';
+const BACKUP_FILE_NAME = 'focus-writer-backup.txt';
+
+let autoBackupInterval = null;
+let backupCountdown = null;
+let nextBackupTime = null;
+const BACKUP_INTERVAL = 5 * 60 * 1000;
+
+let floatingToolbar = null;
+let lastSelection = null;
+
+// Goal tracking variables
+let dailyWordGoal = parseInt(localStorage.getItem('focusWriterDailyGoal')) || 0;
+let todayWordCount = parseInt(localStorage.getItem('focusWriterTodayCount')) || 0;
+let sessionStartWords = parseInt(localStorage.getItem('focusWriterSessionStart')) || 0;
+let lastResetDate = localStorage.getItem('focusWriterLastReset') || new Date().toDateString();
+
+// PWA install prompt
+let deferredPrompt;
+
+// ========================================
+// PWA INSTALL HANDLERS (GLOBAL SCOPE)
+// ========================================
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showInstallButton();
+});
+
+window.addEventListener('appinstalled', () => {
+  console.log('BCM Writer installed!');
+  const installBtn = document.getElementById('installAppBtn');
+  if (installBtn) installBtn.style.display = 'none';
+});
+
+function showInstallButton() {
+  const menuButtons = document.querySelector('.menu-section .menu-buttons');
+  if (!menuButtons) return;
+  
+  // Check if button already exists
+  if (document.getElementById('installAppBtn')) return;
+  
+  const installBtn = document.createElement('button');
+  installBtn.id = 'installAppBtn';
+  installBtn.className = 'menu-button-item';
+  installBtn.innerHTML = '📥 Install App';
+  installBtn.onclick = async () => {
+    if (!deferredPrompt) return;
+    
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      console.log('App installed!');
+      installBtn.style.display = 'none';
+    }
+    
+    deferredPrompt = null;
+  };
+  
+  menuButtons.prepend(installBtn);
+}
+
+// ========================================
+// SERVICE WORKER REGISTRATION
+// ========================================
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then((registration) => {
+        console.log('✓ Service Worker registered:', registration.scope);
+      })
+      .catch((error) => {
+        console.log('✗ Service Worker registration failed:', error);
+      });
+  });
+}
+
+// ========================================
+// ONLINE/OFFLINE DETECTION
+// ========================================
+
+function updateConnectionStatus() {
+  isOnline = navigator.onLine;
+  
+  if (isOnline) {
+    console.log('✓ Back online');
+    
+    // Sync any pending changes
+    if (pendingSyncs.length > 0) {
+      syncPendingChanges();
+    }
+  } else {
+    console.log('✗ Gone offline');
+    showSaveStatus('saving');
+    saveStatusElement.textContent = '📡 Offline';
+  }
+}
+
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', updateConnectionStatus);
+
+// ========================================
+// MENU & UI FUNCTIONS
+// ========================================
+
+function toggleMenu() {
+    isMenuOpen = !isMenuOpen;
+    menuPanel.classList.toggle('open', isMenuOpen);
+    menuButton.classList.toggle('active', isMenuOpen);
+    overlay.classList.toggle('active', isMenuOpen);
+    writingArea.classList.toggle('menu-open', isMenuOpen);
+}
+
+function closeMenu() {
+    isMenuOpen = false;
+    menuPanel.classList.remove('open');
+    menuButton.classList.remove('active');
+    overlay.classList.remove('active');
+    writingArea.classList.remove('menu-open');
+}
+
+function openSetupModal(title, content) {
+    document.getElementById('setupModalTitle').textContent = title;
+    document.getElementById('setupModalContent').innerHTML = content;
+    document.getElementById('setupModal').classList.add('active');
+    document.getElementById('overlay').classList.add('active');
+}
+
+function closeSetupModal() {
+    document.getElementById('setupModal').classList.remove('active');
+    if (!isMenuOpen) {
+        document.getElementById('overlay').classList.remove('active');
+    }
+}
+
+// ========================================
+// AUTO-SAVE FUNCTIONS
+// ========================================
+
+function autoSave() {
+    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+    const content = activeEditor.innerHTML;
+    
+    showSaveStatus('saving');
+    
+    try {
+        localStorage.setItem('focusWriterContent', content);
+        localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+        
+        setTimeout(() => {
+            showSaveStatus('saved');
+        }, 500);
+    } catch (error) {
+        console.error('Error saving locally:', error);
+        showSaveStatus('error');
+    }
+}
+
+function debouncedAutoSave() {
+    clearTimeout(saveTimeout);
+    showSaveStatus('saving');
+    saveTimeout = setTimeout(autoSave, 1000);
+}
+
+function showSaveStatus(status) {
+    saveStatusElement.className = 'save-status';
+    
+    switch (status) {
+        case 'saving':
+            saveStatusElement.textContent = 'Saving...';
+            saveStatusElement.classList.add('saving');
+            break;
+        case 'saved':
+            saveStatusElement.textContent = 'Saved';
+            saveStatusElement.classList.add('saved');
+            break;
+        case 'backing-up':
+            saveStatusElement.textContent = 'Backing up...';
+            saveStatusElement.classList.add('backup');
+            break;
+        case 'backed-up':
+            saveStatusElement.textContent = 'Backed up';
+            saveStatusElement.classList.add('backup');
+            setTimeout(() => showSaveStatus('saved'), 2000);
+            break;
+        case 'loading':
+            saveStatusElement.textContent = 'Loading...';
+            saveStatusElement.classList.add('loading');
+            break;
+        case 'loaded':
+            saveStatusElement.textContent = 'Loaded';
+            saveStatusElement.classList.add('loading');
+            setTimeout(() => showSaveStatus('saved'), 2000);
+            break;
+        case 'error':
+            saveStatusElement.textContent = 'Error';
+            break;
+        default:
+            saveStatusElement.textContent = 'Saved';
+            saveStatusElement.classList.add('saved');
+    }
+}
+
+// ========================================
+// CONTENT MANAGEMENT
+// ========================================
+
+function loadSavedContent() {
+    try {
+        const savedContent = localStorage.getItem('focusWriterContent');
+        if (savedContent) {
+            currentEditor.innerHTML = savedContent;
+            focusEditor.innerHTML = savedContent;
+            updateStats();
+        }
+        
+        currentFileId = localStorage.getItem('focusWriterFileId');
+    } catch (error) {
+        console.error('Error loading saved content:', error);
+    }
+}
+
+function clearSavedContent() {
+    try {
+        localStorage.removeItem('focusWriterContent');
+        localStorage.removeItem('focusWriterLastSaved');
+        localStorage.removeItem('focusWriterFileId');
+    } catch (error) {
+        console.error('Error clearing saved content:', error);
+    }
+}
+
+function syncEditors() {
+    if (isInFocusMode) {
+        currentEditor.innerHTML = focusEditor.innerHTML;
+    } else {
+        focusEditor.innerHTML = currentEditor.innerHTML;
+    }
+    updateStats();
+    debouncedAutoSave();
+}
+
+// ========================================
+// STATISTICS & GOAL TRACKING
+// ========================================
+
+function updateStats() {
+    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+    const text = activeEditor.innerText || activeEditor.textContent || '';
+    const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+    const chars = text.length;
+    
+    document.getElementById('wordCount').textContent = words.toLocaleString();
+    document.getElementById('charCount').textContent = chars.toLocaleString();
+    
+    checkDailyReset();
+    
+    if (dailyWordGoal > 0) {
+        const wordsWrittenToday = Math.max(0, words - sessionStartWords);
+        todayWordCount = wordsWrittenToday;
+        localStorage.setItem('focusWriterTodayCount', todayWordCount);
+        updateGoalDisplay();
+    }
+}
+
+function checkDailyReset() {
+    const today = new Date().toDateString();
+    if (lastResetDate !== today) {
+        todayWordCount = 0;
+        const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+        const text = activeEditor.innerText || activeEditor.textContent || '';
+        const currentWords = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+        sessionStartWords = currentWords;
+        lastResetDate = today;
+        
+        localStorage.setItem('focusWriterTodayCount', todayWordCount);
+        localStorage.setItem('focusWriterSessionStart', sessionStartWords);
+        localStorage.setItem('focusWriterLastReset', lastResetDate);
+        
+        if (dailyWordGoal > 0) {
+            updateGoalDisplay();
+        }
+    }
+}
+
+function openGoalModal() {
+    const goalModal = document.getElementById('goalModal');
+    const goalModalInput = document.getElementById('goalModalInput');
+    const goalActiveButtons = document.getElementById('goalActiveButtons');
+    const overlayEl = document.getElementById('overlay');
+    
+    if (dailyWordGoal > 0) {
+        goalModalInput.value = dailyWordGoal;
+        goalActiveButtons.style.display = 'flex';
+    } else {
+        goalModalInput.value = '';
+        goalActiveButtons.style.display = 'none';
+    }
+    
+    goalModal.classList.add('active');
+    overlayEl.classList.add('active');
+    
+    setTimeout(() => {
+        goalModalInput.focus();
+        goalModalInput.select();
+    }, 100);
+}
+
+function closeGoalModal() {
+    document.getElementById('goalModal').classList.remove('active');
+    if (!isMenuOpen) {
+        document.getElementById('overlay').classList.remove('active');
+    }
+}
+
+function setDailyGoal() {
+    const goalInput = document.getElementById('goalModalInput');
+    const goal = parseInt(goalInput.value);
+    
+    if (!goal || goal < 1) {
+        alert('Please enter a valid word count goal (minimum 1 word)');
+        return;
+    }
+    
+    dailyWordGoal = goal;
+    localStorage.setItem('focusWriterDailyGoal', dailyWordGoal);
+    
+    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+    const text = activeEditor.innerText || activeEditor.textContent || '';
+    const currentWords = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+    
+    sessionStartWords = currentWords;
+    todayWordCount = 0;
+    lastResetDate = new Date().toDateString();
+    
+    localStorage.setItem('focusWriterSessionStart', sessionStartWords);
+    localStorage.setItem('focusWriterTodayCount', todayWordCount);
+    localStorage.setItem('focusWriterLastReset', lastResetDate);
+    
+    updateGoalDisplay();
+    closeGoalModal();
+}
+
+function clearGoal() {
+    if (confirm('Clear your daily goal? This will remove goal tracking.')) {
+        dailyWordGoal = 0;
+        todayWordCount = 0;
+        sessionStartWords = 0;
+        
+        localStorage.removeItem('focusWriterDailyGoal');
+        localStorage.removeItem('focusWriterTodayCount');
+        localStorage.removeItem('focusWriterSessionStart');
+        
+        updateGoalDisplay();
+        closeGoalModal();
+    }
+}
+
+function updateGoalDisplay() {
+    const goalStatItem = document.getElementById('goalStatItem');
+    const goalNumber = document.getElementById('goalNumber');
+    const goalSubtext = document.getElementById('goalSubtext');
+    const todayStatItem = document.getElementById('todayStatItem');
+    const todayNumber = document.getElementById('todayNumber');
+    const todaySubtext = document.getElementById('todaySubtext');
+    const goalCountdown = document.getElementById('goalCountdown');
+
+    // Update in-editor countdown
+    if (dailyWordGoal > 0 && !isInFocusMode) {
+        const remaining = Math.max(0, dailyWordGoal - todayWordCount);
+        const isComplete = todayWordCount >= dailyWordGoal;
+        
+        if (!isComplete) {
+            goalCountdown.textContent = `${remaining.toLocaleString()}`;
+            goalCountdown.classList.add('active');
+            goalCountdown.classList.remove('complete');
+        } else {
+            goalCountdown.classList.add('complete');
+            setTimeout(() => {
+                goalCountdown.classList.remove('active');
+            }, 300);
+        }
+    } else {
+        goalCountdown.classList.remove('active');
+    }
+    
+    // Update menu stats
+    if (dailyWordGoal > 0) {
+        const remaining = Math.max(0, dailyWordGoal - todayWordCount);
+        const isComplete = todayWordCount >= dailyWordGoal;
+        
+        goalStatItem.classList.add('goal-active');
+        goalNumber.classList.add('goal-number');
+        
+        if (isComplete) {
+            goalNumber.textContent = '✓ Done!';
+            goalSubtext.textContent = `${dailyWordGoal.toLocaleString()} words`;
+        } else {
+            goalNumber.textContent = remaining.toLocaleString();
+            goalSubtext.textContent = `of ${dailyWordGoal.toLocaleString()} remaining`;
+        }
+        
+        todayStatItem.style.display = 'block';
+        todayNumber.textContent = todayWordCount.toLocaleString();
+        
+        if (isComplete) {
+            todayNumber.classList.add('goal-number');
+            todaySubtext.textContent = 'goal reached!';
+        } else {
+            todayNumber.classList.remove('goal-number');
+            todaySubtext.textContent = 'words written';
+        }
+    } else {
+        goalStatItem.classList.remove('goal-active');
+        goalNumber.classList.remove('goal-number');
+        goalNumber.textContent = 'Set Goal';
+        goalSubtext.textContent = 'Click to set';
+        todayStatItem.style.display = 'none';
+    }
+}
+
+// ========================================
+// FORMATTING TOOLBAR
+// ========================================
+
+function applyMarkdown(type) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    
+    const range = selection.getRangeAt(0);
+    const selectedText = range.toString();
+    
+    switch(type) {
+        case 'bold':
+            document.execCommand('bold', false, null);
+            break;
+        case 'italic':
+            document.execCommand('italic', false, null);
+            break;
+        case 'underline':
+            document.execCommand('underline', false, null);
+            break;
+        case 'heading':
+            document.execCommand('formatBlock', false, 'h2');
+            break;
+        case 'note':
+            if (selectedText) {
+                const newText = `[ ${selectedText} ]`;
+                document.execCommand('insertText', false, newText);
+            } else {
+                document.execCommand('insertText', false, '[\u00A0\u00A0]');
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                    const range = sel.getRangeAt(0);
+                    const textNode = range.startContainer;
+                    if (textNode.nodeType === 3) {
+                        range.setStart(textNode, range.startOffset - 2);
+                        range.setEnd(textNode, range.startOffset);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            }
+            break;
+    }
+    
+    hideFloatingToolbar();
+}
+
+function showFloatingToolbar(x, y) {
+    if (!floatingToolbar) {
+        floatingToolbar = document.getElementById('floatingToolbar');
+    }
+    
+    const toolbar = floatingToolbar;
+    toolbar.classList.add('active');
+    
+    const toolbarHeight = 44;
+    const toolbarWidth = 250;
+    
+    let left = x - (toolbarWidth / 2);
+    let top = y - toolbarHeight - 10;
+    
+    if (left < 10) left = 10;
+    if (left + toolbarWidth > window.innerWidth - 10) {
+        left = window.innerWidth - toolbarWidth - 10;
+    }
+    if (top < 10) {
+        top = y + 30;
+    }
+    
+    toolbar.style.left = left + 'px';
+    toolbar.style.top = top + 'px';
+}
+
+function hideFloatingToolbar() {
+    if (floatingToolbar) {
+        floatingToolbar.classList.remove('active');
+    }
+}
+
+function handleTextSelection() {
+    const selection = window.getSelection();
+    const selectedText = selection.toString().trim();
+    
+    if (selectedText.length > 0) {
+        lastSelection = selection;
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        const x = rect.left + (rect.width / 2);
+        const y = rect.top + window.scrollY;
+        showFloatingToolbar(x, y);
+    } else {
+        hideFloatingToolbar();
+    }
+}
+
+// ========================================
+// FOCUS MODE
+// ========================================
+
+function toggleFocusMode() {
+    const focusMode = document.getElementById('focusMode');
+    isInFocusMode = !isInFocusMode;
+    
+    if (isInFocusMode) {
+        syncEditors();
+        focusMode.style.display = 'flex';
+        focusEditor.focus();
+        closeMenu();
+    } else {
+        syncEditors();
+        focusMode.style.display = 'none';
+        currentEditor.focus();
+    }
+}
+
+// ========================================
+// DOCUMENT OPERATIONS
+// ========================================
+
+function saveDocument() {
+    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+    const plainText = activeEditor.innerText || activeEditor.textContent || '';
+    
+    const blob = new Blob([plainText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    const now = new Date();
+    const timestamp = now.toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '-');
+    a.download = `focus-writer_${timestamp}.txt`;
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    closeMenu();
+}
+
+function newDocument() {
+    if (confirm('Start a new document? Any unsaved changes will be lost.')) {
+        currentEditor.innerHTML = '';
+        focusEditor.innerHTML = '';
+        clearSavedContent();
+        currentFileId = null;
+        updateStats();
+        showSaveStatus('saved');
+        currentEditor.focus();
+        closeMenu();
+    }
+}
+
+// ========================================
+// GOOGLE DRIVE - STATUS & TIMER
+// ========================================
+
+function updateDriveStatus(message) {
+    document.getElementById('driveStatus').innerHTML = message;
+}
+
+function startBackupTimer() {
+    if (!isSignedIn || !TARGET_FOLDER_ID) return;
+    
+    if (autoBackupInterval) clearInterval(autoBackupInterval);
+    if (backupCountdown) clearInterval(backupCountdown);
+    
+    nextBackupTime = Date.now() + BACKUP_INTERVAL;
+    
+    autoBackupInterval = setInterval(() => {
+        performAutoBackup();
+        nextBackupTime = Date.now() + BACKUP_INTERVAL;
+    }, BACKUP_INTERVAL);
+    
+    backupCountdown = setInterval(updateBackupTimer, 1000);
+}
+
+function stopBackupTimer() {
+    if (autoBackupInterval) {
+        clearInterval(autoBackupInterval);
+        autoBackupInterval = null;
+    }
+    if (backupCountdown) {
+        clearInterval(backupCountdown);
+        backupCountdown = null;
+    }
+    document.getElementById('backupTimer').innerHTML = '';
+}
+
+function updateBackupTimer() {
+    if (!nextBackupTime || !isSignedIn) return;
+    
+    const timeLeft = Math.max(0, nextBackupTime - Date.now());
+    const minutes = Math.floor(timeLeft / 60000);
+    const seconds = Math.floor((timeLeft % 60000) / 1000);
+    
+    document.getElementById('backupTimer').innerHTML = 
+        `Next backup in: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function performAutoBackup() {
+    if (!isSignedIn || !accessToken || !TARGET_FOLDER_ID) {
+        return;
+    }
+    
+    if (tokenExpiry && Date.now() > tokenExpiry - (5 * 60 * 1000)) {
+        refreshAccessToken().then(refreshed => {
+            if (refreshed) {
+                backupToGoogleDrive(true);
+            } else {
+                updateDriveStatus('Session expired. Please reconnect to continue auto-backup.');
+                stopBackupTimer();
+            }
+        });
+    } else {
+        backupToGoogleDrive(true);
+    }
+}
+
+// ========================================
+// GOOGLE DRIVE - BACKUP FUNCTIONS
+// ========================================
+
+function backupToGoogleDrive(silent = false) {
+    // Check online status FIRST
+    if (!isOnline) {
+        const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+        const content = activeEditor.textContent;
+        
+        pendingSyncs.push({
+            content: content,
+            timestamp: Date.now()
+        });
+        localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+        
+        if (!silent) {
+            updateDriveStatus('📡 Queued for sync when online');
+        }
+        return;
+    }
+    
+    // Now check authentication
+    if (!isSignedIn || !accessToken) {
+        if (!silent) updateDriveStatus('Not connected to Google Drive');
+        return;
+    }
+    
+    if (!TARGET_FOLDER_ID) {
+        if (!silent) updateDriveStatus('No backup folder set');
+        return;
+    }
+    
+    if (!silent) {
+        updateDriveStatus('Backing up to Google Drive...');
+        showSaveStatus('backing-up');
+    }
+    
+    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+    const content = activeEditor.innerHTML;
+    
+    localStorage.setItem('focusWriterContent', activeEditor.innerHTML);
+    localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+    
+    verifyCurrentFile().then(isValidFile => {
+        if (currentFileId && isValidFile) {
+            updateFileInDrive(content, silent);
+        } else {
+            if (currentFileId && !isValidFile) {
+                currentFileId = null;
+                localStorage.removeItem('focusWriterFileId');
+            }
+            createFileInDrive(content, silent);
+        }
+    });
+}
+
+async function syncPendingChanges() {
+    if (pendingSyncs.length === 0) return;
+    if (!isOnline) return;
+    if (!isSignedIn || !accessToken) return;
+    
+    console.log(`Syncing ${pendingSyncs.length} pending changes...`);
+    updateDriveStatus(`Syncing ${pendingSyncs.length} pending changes...`);
+    
+    for (let i = 0; i < pendingSyncs.length; i++) {
+        const sync = pendingSyncs[i];
+        
+        try {
+            // Use the existing backup function
+            await backupToGoogleDrive(true);
+            
+            // Remove from pending queue
+            pendingSyncs.shift();
+            localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+            
+        } catch (error) {
+            console.error('Sync failed:', error);
+            break; // Stop syncing on first failure
+        }
+    }
+    
+    if (pendingSyncs.length === 0) {
+        updateDriveStatus('✓ All changes synced!');
+    } else {
+        updateDriveStatus(`${pendingSyncs.length} changes still pending`);
+    }
+}
+
+function verifyCurrentFile() {
+    if (!currentFileId || !isSignedIn || !accessToken) {
+        return Promise.resolve(false);
+    }
+
+    return fetch(`https://www.googleapis.com/drive/v3/files/${currentFileId}?fields=id,name,parents`, {
+        method: 'GET',
+        headers: new Headers({
+            'Authorization': `Bearer ${accessToken}`
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            return false;
+        }
+        
+        const isInTargetFolder = data.parents && data.parents.includes(TARGET_FOLDER_ID);
+        return isInTargetFolder;
+    })
+    .catch(error => {
+        console.error('Error verifying current file:', error);
+        return false;
+    });
+}
+
+function createFileInDrive(content, silent) {
+    const fileMetadata = {
+        name: BACKUP_FILE_NAME,
+        parents: [TARGET_FOLDER_ID]
+    };
+    
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(fileMetadata)], {type: 'application/json'}));
+    form.append('file', new Blob([content], {type: 'text/html'}));
+    
+    fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,parents', {
+        method: 'POST',
+        headers: new Headers({
+            'Authorization': `Bearer ${accessToken}`
+        }),
+        body: form
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+        
+        currentFileId = data.id;
+        localStorage.setItem('focusWriterFileId', currentFileId);
+        
+        if (!silent) {
+            updateDriveStatus(`Backup created: ${BACKUP_FILE_NAME}<br>File ID: ${data.id}`);
+            showSaveStatus('backed-up');
+        }
+    })
+    .catch(error => {
+        console.error('Backup error:', error);
+        if (!silent) {
+            updateDriveStatus(`Backup failed: ${error.message}`);
+            showSaveStatus('error');
+        }
+    });
+}
+
+function updateFileInDrive(content, silent) {
+    fetch(`https://www.googleapis.com/upload/drive/v3/files/${currentFileId}?uploadType=media&fields=id,name,modifiedTime`, {
+        method: 'PATCH',
+        headers: new Headers({
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'text/plain'
+        }),
+        body: content
+    })
+    .then(response => response.json())
+    .then(data => {throw new Error(data.error.message);
+        }
+        
+        if (!silent) {
+            updateDriveStatus(`Backup updated: ${BACKUP_FILE_NAME}<br>Last updated: ${new Date().toLocaleTimeString()}`);
+            showSaveStatus('backed-up');
+        }
+    })
+    .catch(error => {
+        console.error('Update error:', error);
+        if (error.message.includes('404') || error.message.includes('File not found')) {
+            currentFileId = null;
+            localStorage.removeItem('focusWriterFileId');
+            createFileInDrive(content, silent);
+        } else {
+            if (!silent) {
+                updateDriveStatus(`Backup update failed: ${error.message}`);
+                showSaveStatus('error');
+            }
+        }
+    });
+}
+
+function loadFromGoogleDrive() {
+    if (!isSignedIn || !accessToken) {
+        updateDriveStatus('Not connected to Google Drive');
+        return;
+    }
+    
+    if (!TARGET_FOLDER_ID) {
+        updateDriveStatus('No backup folder set. Click "Set Backup Folder" first.');
+        return;
+    }
+
+    updateDriveStatus('Loading from Google Drive...');
+    showSaveStatus('loading');
+
+    const query = `name='${BACKUP_FILE_NAME}' and parents in '${TARGET_FOLDER_ID}' and trashed=false`;
+    
+    fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`, {
+        method: 'GET',
+        headers: new Headers({
+            'Authorization': `Bearer ${accessToken}`
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+
+        if (!data.files || data.files.length === 0) {
+            updateDriveStatus('No backup file found in Google Drive. Start writing to create your first backup.');
+            showSaveStatus('saved');
+            return;
+        }
+
+        const file = data.files[0];
+        currentFileId = file.id;
+        localStorage.setItem('focusWriterFileId', currentFileId);
+
+        return fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+            method: 'GET',
+            headers: new Headers({
+                'Authorization': `Bearer ${accessToken}`
+            })
+        });
+    })
+    .then(response => {
+        if (!response) return;
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.text();
+    })
+    .then(content => {
+        if (!content && content !== '') return;
+
+        currentEditor.innerText = content;
+        focusEditor.innerText = content;
+        
+        localStorage.setItem('focusWriterContent', currentEditor.innerHTML);
+        localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+        
+        updateStats();
+        showSaveStatus('loaded');
+        
+        updateDriveStatus(`Document loaded from Google Drive<br>${content.length} characters loaded<br>Auto-backup every 5 minutes`);
+    })
+    .catch(error => {
+        console.error('Load error:', error);
+        updateDriveStatus(`Failed to load from Google Drive: ${error.message}`);
+        showSaveStatus('error');
+    });
+}
+
+function manualBackup() {
+    if (!TARGET_FOLDER_ID) {
+        updateDriveStatus('No backup folder set. Click "Set Backup Folder" first.');
+        return;
+    }
+    backupToGoogleDrive(false);
+}
+
+// ========================================
+// GOOGLE DRIVE - OAUTH & SETUP
+// ========================================
+
+function refreshAccessToken() {
+    if (!sessionId || !WORKER_URL || WORKER_URL.includes('your-worker')) {
+        console.error('Cannot refresh: missing session ID or worker URL');
+        return Promise.resolve(false);
+    }
+    
+    return fetch(`${WORKER_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            session_id: sessionId
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Worker returned ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            console.error('Worker error:', data.error);
+            return false;
+        }
+        
+        if (data.access_token) {
+            accessToken = data.access_token;
+            tokenExpiry = Date.now() + ((data.expires_in || 3600) * 1000);
+            
+            localStorage.setItem('focusWriterAccessToken', accessToken);
+            localStorage.setItem('focusWriterTokenExpiry', tokenExpiry.toString());
+            
+            return true;
+        }
+        
+        return false;
+    })
+    .catch(error => {
+        console.error('Token refresh failed:', error);
+        return false;
+    });
+}
+
+function connectGoogleDrive() {
+    if (!CLIENT_ID || !API_KEY) {
+        showSetupWizardStep1();
+        return;
+    }
+
+    updateDriveStatus('Connecting to Google Drive...');
+    window.location.href = `${WORKER_URL}/auth/google/start`;
+}
+
+function disconnectGoogleDrive() {
+    if (accessToken) {
+        try {
+            google.accounts.oauth2.revoke(accessToken, () => {});
+        } catch (e) {
+            console.log('Could not revoke token:', e);
+        }
+    }
+    
+    stopBackupTimer();
+    
+    localStorage.removeItem('focusWriterAccessToken');
+    localStorage.removeItem('focusWriterTokenExpiry');
+    localStorage.removeItem('focusWriterSessionId');
+    
+    accessToken = null;
+    tokenExpiry = null;
+    sessionId = null;
+    isSignedIn = false;
+    isGoogleDriveLoaded = false;
+    currentFileId = null;
+    updateDriveUI();
+    updateDriveStatus('Disconnected from Google Drive');
+}
+
+function setupOrConnect() {
+    if (!CLIENT_ID || !API_KEY) {
+        showSetupWizardStep1();
+    } else if (!isSignedIn) {
+        connectGoogleDrive();
+    } else if (!TARGET_FOLDER_ID) {
+        showSetupWizardStep2();
+    } else {
+        connectGoogleDrive();
+    }
+}
+
+function showSetupWizardStep1() {
+    const currentClientId = CLIENT_ID || '';
+    const currentApiKey = API_KEY || '';
+    const currentClientSecret = CLIENT_SECRET || '';
+    
+    const wizardHTML = `
+        <h4>Step 1: Google Cloud Setup</h4>
+        
+        <p>To enable Google Drive backups with persistent login, you need your Google Cloud credentials.</p>
+        
+        <button onclick="showDetailedSetupInstructions()" class="primary" style="margin-bottom: 20px;">
+            Show Me How to Get Credentials
+        </button>
+        
+        <label>Client ID:</label>
+        <input type="text" id="clientIdInput" value="${currentClientId}" placeholder="xxx.apps.googleusercontent.com">
+        
+        <label>Client Secret:</label>
+        <input type="password" id="clientSecretInput" value="${currentClientSecret}" placeholder="GOCSPX-xxx...">
+        
+        <label>API Key:</label>
+        <input type="text" id="apiKeyInput" value="${currentApiKey}" placeholder="AIza...">
+        
+        <div class="setup-button-group">
+            <button onclick="saveCredentialsAndContinue()" class="primary">Save & Continue</button>
+            <button onclick="skipSetup()" class="secondary">Skip (No Backups)</button>
+        </div>
+    `;
+    
+    openSetupModal('Setup Google Drive', wizardHTML);
+}
+
+function showDetailedSetupInstructions() {
+    window.open('SETUP.md', '_blank');
+    
+    const instructions = `
+        <h4>Setup Guide Opened</h4>
+        
+        <div class="setup-success-box">
+            <p style="margin: 0;">📖 The detailed setup guide has been opened in a new tab!</p>
+        </div>
+        
+        <p>Follow the comprehensive step-by-step instructions in the guide, then come back here to enter your credentials.</p>
+        
+        <div class="setup-button-group">
+            <button onclick="showSetupWizardStep1()" class="primary">Enter Credentials</button>
+            <button onclick="closeSetupModal()" class="secondary">Close</button>
+        </div>
+    `;
+    
+    openSetupModal('Setup Instructions', instructions);
+}
+
+function saveCredentialsAndContinue() {
+    const clientId = document.getElementById('clientIdInput').value.trim();
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    const clientSecret = document.getElementById('clientSecretInput').value.trim();
+    
+    if (!clientId || !apiKey) {
+        alert('Please enter both Client ID and API Key');
+        return;
+    }
+    
+    CLIENT_ID = clientId;
+    API_KEY = apiKey;
+    CLIENT_SECRET = clientSecret;
+    
+    localStorage.setItem('focusWriterClientId', CLIENT_ID);
+    localStorage.setItem('focusWriterApiKey', API_KEY);
+    if (CLIENT_SECRET) {
+        localStorage.setItem('focusWriterClientSecret', CLIENT_SECRET);
+    }
+    
+    updateDriveUI();
+    
+    const successHTML = `
+        <div class="setup-success-box">
+            <p style="margin: 0;"><strong>Credentials Saved!</strong> Connecting to Google Drive...</p>
+        </div>
+        <p>Please sign in with your Google account in the popup window.</p>
+    `;
+    
+    openSetupModal('Connecting...', successHTML);
+    
+    setTimeout(() => {
+        connectGoogleDrive();
+    }, 1500);
+}
+
+function skipSetup() {
+    closeSetupModal();
+    updateDriveStatus('Google Drive backup skipped. Your work will only be saved locally in your browser.');
+    updateDriveUI();
+}
+
+function showSetupWizardStep2() {
+    const wizardHTML = `
+        <h4>Step 2: Choose Backup Location</h4>
+        
+        <p>Where should your documents be backed up in Google Drive?</p>
+        
+        <button onclick="createBackupFolder()" class="primary" style="margin-bottom: 10px;">
+            Create New Folder (Recommended)
+        </button>
+        
+        <button onclick="showExistingFolderInstructions()" class="secondary">
+            Use Existing Folder
+        </button>
+        
+        <div class="setup-info-box" style="margin-top: 20px;">
+            <p style="margin: 0; font-size: 12px;"><strong>Tip:</strong> Creating a new folder is easier and keeps your backups organized.</p>
+        </div>
+    `;
+    
+    openSetupModal('Choose Backup Location', wizardHTML);
+}
+
+function showExistingFolderInstructions() {
+    const instructions = `
+        <h4>Use Existing Folder</h4>
+        
+        <p><strong>How to find your folder ID:</strong></p>
+        
+        <ol>
+            <li>Open <a href="https://drive.google.com" target="_blank">Google Drive</a></li>
+            <li>Navigate to the folder you want to use</li>
+            <li>Look at the URL in your browser's address bar</li>
+            <li>Copy everything after <code>/folders/</code></li>
+        </ol>
+        
+        <div class="setup-info-box">
+            <p style="margin-bottom: 5px; font-size: 12px;"><strong>Example URL:</strong></p>
+            <code style="font-size: 11px;">drive.google.com/drive/folders/<strong style="color: #66cc66;">1HDSoa7EThz...</strong></code>
+        </div>
+        
+        <label>Paste Folder ID:</label>
+        <input type="text" id="folderIdInput" placeholder="1HDSoa7EThzo15nkwWlb2RURzBWNxSIAe">
+        
+        <div class="setup-button-group">
+            <button onclick="saveExistingFolder()" class="primary">Save Folder</button>
+            <button onclick="showSetupWizardStep2()" class="secondary">Back</button>
+        </div>
+    `;
+    
+    openSetupModal('Use Existing Folder', instructions);
+}
+
+function saveExistingFolder() {
+    const folderId = document.getElementById('folderIdInput').value.trim();
+    
+    if (!folderId) {
+        alert('Please enter a folder ID');
+        return;
+    }
+    
+    TARGET_FOLDER_ID = folderId;
+    localStorage.setItem('focusWriterFolderId', TARGET_FOLDER_ID);
+    
+    updateDriveUI();
+    showSetupComplete();
+}
+
+function createBackupFolder() {
+    if (!isSignedIn || !accessToken) {
+        closeSetupModal();
+        updateDriveStatus('Connect to Google Drive first');
+        return;
+    }
+    
+    const loadingHTML = `
+        <div class="setup-info-box">
+            <p style="margin: 0;">Creating "BCMW Backups" folder in your Google Drive...</p>
+        </div>
+    `;
+    
+    openSetupModal('Creating Folder...', loadingHTML);
+    
+    const folderMetadata = {
+        name: 'BCMW Backups',
+        mimeType: 'application/vnd.google-apps.folder'
+    };
+    
+    fetch('https://www.googleapis.com/drive/v3/files?fields=id,name,webViewLink', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(folderMetadata)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+        
+        TARGET_FOLDER_ID = data.id;
+        localStorage.setItem('focusWriterFolderId', TARGET_FOLDER_ID);
+        updateDriveUI();
+        showSetupComplete();
+    })
+    .catch(error => {
+        const errorHTML = `
+            <p style="color: #cc6666;">Failed to create folder: ${error.message}</p>
+            <button onclick="showSetupWizardStep2()" class="primary">Try Again</button>
+        `;
+        openSetupModal('Error', errorHTML);
+    });
+}
+
+function showSetupComplete() {
+    const completeHTML = `
+        <div class="setup-success-box">
+            <h4 style="color: #66cc66; margin: 0 0 10px 0;">Setup Complete!</h4>
+            <p style="margin: 0;">Your Google Drive backup is now configured and active.</p>
+        </div>
+        
+        <div class="setup-info-box">
+            <p style="margin-bottom: 8px;"><strong>What happens now:</strong></p>
+            <ul style="margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.8;">
+                <li>Your work auto-saves locally as you type</li>
+                <li>Every 5 minutes, it backs up to Google Drive</li>
+                <li>Use "Load from Drive" to sync across devices</li>
+                <li>Use "Manual Backup" to save immediately</li>
+            </ul>
+        </div>
+        
+        <button onclick="loadFromGoogleDrive()" class="secondary" style="margin-bottom: 10px;">
+            Load Existing Document
+        </button>
+        
+        <button onclick="closeSetupAndStartWriting()" class="primary">
+            Start Writing
+        </button>
+    `;
+    
+    openSetupModal('All Set!', completeHTML);
+    
+    setTimeout(() => {
+        startBackupTimer();
+    }, 2000);
+}
+
+function closeSetupAndStartWriting() {
+    closeSetupModal();
+    updateDriveStatus('Google Drive backup active. Auto-saving every 5 minutes.');
+    closeMenu();
+    currentEditor.focus();
+}
+
+function clearGoogleCredentials() {
+    if (confirm('Remove saved Google Drive credentials, session, and folder settings?')) {
+        localStorage.removeItem('focusWriterClientId');
+        localStorage.removeItem('focusWriterClientSecret');
+        localStorage.removeItem('focusWriterApiKey');
+        localStorage.removeItem('focusWriterFolderId');
+        localStorage.removeItem('focusWriterSessionId');
+        localStorage.removeItem('focusWriterAccessToken');
+        localStorage.removeItem('focusWriterTokenExpiry');
+        CLIENT_ID = null;
+        CLIENT_SECRET = null;
+        API_KEY = null;
+        TARGET_FOLDER_ID = null;
+        sessionId = null;
+        disconnectGoogleDrive();
+        updateDriveStatus('Credentials cleared. Click "Setup Google Drive" to configure.');
+        updateDriveUI();
+    }
+}
+
+function selectBackupFolder() {
+    if (!CLIENT_ID || !API_KEY) {
+        updateDriveStatus('Please setup Google Drive credentials first');
+        return;
+    }
+    
+    if (!isSignedIn) {
+        updateDriveStatus('Please connect to Google Drive first');
+        return;
+    }
+    
+    showSetupWizardStep2();
+}
+
+function updateDriveUI() {
+    const connectBtn = document.getElementById('driveConnectBtn');
+    const disconnectBtn = document.getElementById('driveDisconnectBtn');
+    const backupBtn = document.getElementById('driveBackupBtn');
+    const folderBtn = document.getElementById('driveFolderBtn');
+    const clearBtn = document.getElementById('driveClearBtn');
+    const loadBtn = document.getElementById('driveLoadBtn');
+    
+    if (!CLIENT_ID || !API_KEY) {
+        if (connectBtn) {
+            connectBtn.textContent = 'Setup Google Drive';
+            connectBtn.style.display = 'block';
+        }
+        if (disconnectBtn) disconnectBtn.style.display = 'none';
+        if (backupBtn) backupBtn.style.display = 'none';
+        if (folderBtn) folderBtn.style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'none';
+        if (loadBtn) loadBtn.style.display = 'none';
+    } else if (isSignedIn) {
+        if (connectBtn) connectBtn.style.display = 'none';
+        if (disconnectBtn) disconnectBtn.style.display = 'block';
+        if (backupBtn) backupBtn.style.display = 'block';
+        if (folderBtn) folderBtn.style.display = 'block';
+        if (clearBtn) clearBtn.style.display = 'block';
+        if (loadBtn) loadBtn.style.display = 'block';
+    } else {
+        if (connectBtn) {
+            connectBtn.textContent = 'Connect Drive';
+            connectBtn.style.display = 'block';
+        }
+        if (disconnectBtn) disconnectBtn.style.display = 'none';
+        if (backupBtn) backupBtn.style.display = 'none';
+        if (folderBtn) folderBtn.style.display = 'block';
+        if (clearBtn) clearBtn.style.display = 'block';
+        if (loadBtn) loadBtn.style.display = 'none';
+    }
+}
+
+// ========================================
+// EVENT LISTENERS
+// ========================================
+
+function initializeEventListeners() {
+    console.log('🔧 Initializing event listeners...');
+    
+    // Menu button
+    if (menuButton) {
+        menuButton.removeEventListener('click', toggleMenu);
+        menuButton.addEventListener('click', toggleMenu);
+        console.log('✅ Menu button listener attached');
+    } else {
+        console.error('❌ Menu button not found!');
+    }
+    
+    // Overlay
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            if (isMenuOpen) closeMenu();
+            if (document.getElementById('setupModal').classList.contains('active')) {
+                closeSetupModal();
+            }
+            if (document.getElementById('goalModal').classList.contains('active')) {
+                closeGoalModal();
+            }
+        });
+        console.log('✅ Overlay listener attached');
+    }
+    
+    // Editor listeners
+    currentEditor.addEventListener('input', syncEditors);
+    focusEditor.addEventListener('input', syncEditors);
+
+    currentEditor.addEventListener('mouseup', handleTextSelection);
+    focusEditor.addEventListener('mouseup', handleTextSelection);
+    
+    currentEditor.addEventListener('touchend', handleTextSelection);
+    focusEditor.addEventListener('touchend', handleTextSelection);
+    
+    document.addEventListener('mousedown', (e) => {
+        if (floatingToolbar && !floatingToolbar.contains(e.target)) {
+            const selection = window.getSelection();
+            if (!selection.toString().trim()) {
+                hideFloatingToolbar();
+            }
+        }
+    });
+
+    // Goal modal
+    const goalStatItem = document.getElementById('goalStatItem');
+    if (goalStatItem) {
+        goalStatItem.addEventListener('click', openGoalModal);
+    }
+
+    const goalModalCloseBtn = document.getElementById('goalModalCloseBtn');
+    const setGoalBtn = document.getElementById('setGoalBtn');
+    const cancelGoalBtn = document.getElementById('cancelGoalBtn');
+    const clearGoalBtn = document.getElementById('clearGoalBtn');
+    const goalModalInput = document.getElementById('goalModalInput');
+
+    if (goalModalCloseBtn) goalModalCloseBtn.addEventListener('click', closeGoalModal);
+    if (setGoalBtn) setGoalBtn.addEventListener('click', setDailyGoal);
+    if (cancelGoalBtn) cancelGoalBtn.addEventListener('click', closeGoalModal);
+    if (clearGoalBtn) clearGoalBtn.addEventListener('click', clearGoal);
+    if (goalModalInput) {
+        goalModalInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                setDailyGoal();
+            }
+        });
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (isInFocusMode) {
+                toggleFocusMode();
+            } else if (isMenuOpen) {
+                closeMenu();
+            }
+        }
+        
+        if (e.ctrlKey && e.key === 'm') {
+            e.preventDefault();
+            toggleMenu();
+        }
+        
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            if (isSignedIn && TARGET_FOLDER_ID) {
+                manualBackup();
+            } else {
+                saveDocument();
+            }
+        }
+        
+        if (e.ctrlKey && e.key === 'b') {
+            e.preventDefault();
+            applyMarkdown('bold');
+        }
+        
+        if (e.ctrlKey && e.key === 'i') {
+            e.preventDefault();
+            applyMarkdown('italic');
+        }
+        
+        if (e.ctrlKey && e.key === 'u') {
+            e.preventDefault();
+            applyMarkdown('underline');
+        }
+        
+        if (e.ctrlKey && e.key === '[') {
+            e.preventDefault();
+            applyMarkdown('note');
+        }
+    });
+    
+    console.log('✅ All event listeners initialized');
+}
+
+// ========================================
+// INITIALIZATION ON PAGE LOAD
+// ========================================
+
+// Load saved content
+loadSavedContent();
+
+// Initialize event listeners
+initializeEventListeners();
+
+// Check for OAuth callback
+const urlParams = new URLSearchParams(window.location.search);
+const sessionIdParam = urlParams.get('session_id');
+const errorParam = urlParams.get('error');
+
+if (errorParam) {
+    updateDriveStatus('Authentication failed: ' + errorParam);
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+if (sessionIdParam) {
+    sessionId = sessionIdParam;
+    localStorage.setItem('focusWriterSessionId', sessionId);
+    isSignedIn = true;
+    isGoogleDriveLoaded = true;
+    
+    updateDriveUI();
+    updateDriveStatus('✓ Connected to Google Drive!');
+    
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    if (!TARGET_FOLDER_ID) {
+        showSetupWizardStep2();
+    } else {
+        startBackupTimer();
+        loadFromGoogleDrive();
+    }
+}
+
+// Check if we have existing credentials
+else if (CLIENT_ID && API_KEY) {
+    if (localStorage.getItem('focusWriterSessionId')) {
+        sessionId = localStorage.getItem('focusWriterSessionId');
+        isSignedIn = true;
+        updateDriveUI();
+        
+        if (TARGET_FOLDER_ID) {
+            updateDriveStatus('Connected to Google Drive');
+            startBackupTimer();
+        } else {
+            updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
+        }
+    } else {
+        updateDriveUI();
+    }
+} else {
+    updateDriveUI();
+}
+
+// Initialize editor if empty
+if (!localStorage.getItem('focusWriterContent')) {
+    currentEditor.innerHTML = '<br><br>';
+    focusEditor.innerHTML = '<br><br>';
+    
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.setStart(currentEditor, 2);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+
+// Check connection status on load
+updateConnectionStatus();
+
+// Check for pending syncs on load
+if (pendingSyncs.length > 0 && isOnline && isSignedIn) {
+    setTimeout(() => {
+        syncPendingChanges();
+    }, 2000);
+}
+
+// Final initialization
+updateStats();
+showSaveStatus('saved');
+updateGoalDisplay();
+currentEditor.focus();
+
+// Make functions globally accessible for onclick handlers
+window.setupOrConnect = setupOrConnect;
+window.selectBackupFolder = selectBackupFolder;
+window.loadFromGoogleDrive = loadFromGoogleDrive;
+window.manualBackup = manualBackup;
+window.clearGoogleCredentials = clearGoogleCredentials;
+window.disconnectGoogleDrive = disconnectGoogleDrive;
+window.newDocument = newDocument;
+window.saveDocument = saveDocument;
+window.toggleFocusMode = toggleFocusMode;
+window.closeSetupModal = closeSetupModal;
+window.showDetailedSetupInstructions = showDetailedSetupInstructions;
+window.saveCredentialsAndContinue = saveCredentialsAndContinue;
+window.skipSetup = skipSetup;
+window.showSetupWizardStep1 = showSetupWizardStep1;
+window.showSetupWizardStep2 = showSetupWizardStep2;
+window.showExistingFolderInstructions = showExistingFolderInstructions;
+window.saveExistingFolder = saveExistingFolder;
+window.createBackupFolder = createBackupFolder;
+window.closeSetupAndStartWriting = closeSetupAndStartWriting;
+window.applyMarkdown = applyMarkdown;
+
+console.log('✅ BCM Writer initialized successfully!');
+</script>
+        if (data.error) {
+            throw new Error(
+</body>
+</html>
