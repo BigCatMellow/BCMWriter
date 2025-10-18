@@ -1,7 +1,7 @@
 {
   "name": "BCM Writer",
   "short_name": "BCM Writer",
-  "description": "Distraction-free writing with cloud backup",
+  "description": "Distraction-free writing with automatic cloud backup",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a1a",
