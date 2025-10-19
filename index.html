@@ -1912,6 +1912,12 @@ async function syncPendingChanges() {
       break; // stop on first failure; will retry later
     }
   }
+  
+  if (pendingSyncs.length === 0) {
+    updateDriveStatus('✓ All changes synced!');
+  } else {
+    updateDriveStatus(`${pendingSyncs.length} changes still pending`);
+  }
 }
 
 
