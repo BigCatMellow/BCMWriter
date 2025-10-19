@@ -64,7 +64,7 @@
             background: transparent;
             resize: none;
             overflow-y: auto;
-            letter-spacing: 0.01em;
+            letter-spacing: 0.03em;
             font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
             border-radius: 8px;
             scrollbar-width: thin;
@@ -1101,6 +1101,7 @@ if (localStorage.getItem('focusWriterClientId')) {
     localStorage.removeItem('focusWriterApiKey');
     localStorage.removeItem('focusWriterAccessToken');
     localStorage.removeItem('focusWriterTokenExpiry');
+}
 
 const WORKER_URL = 'https://bcmwriter.goldenjanitors.workers.dev';
 const SCOPES = 'https://www.googleapis.com/auth/drive';
