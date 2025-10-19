@@ -1762,7 +1762,7 @@ function performAutoBackup() {
 }
 
 async function findFileInFolder(name, folderId, accessToken) {
-  const query = `name='${BACKUP_FILE_NAME}' and '${TARGET_FOLDER_ID}' in parents and trashed=false`;
+  const query = `name='${name}' and '${folderId}' in parents and trashed=false`;
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`;
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` }});
   if (!res.ok) throw new Error('Drive search failed');
@@ -1920,15 +1920,6 @@ async function syncPendingChanges() {
   }
 }
 
-
-    
-    if (pendingSyncs.length === 0) {
-        updateDriveStatus('✓ All changes synced!');
-    } else {
-        updateDriveStatus(`${pendingSyncs.length} changes still pending`);
-    }
-}
-
 function verifyCurrentFile() {
     if (!currentFileId || !isSignedIn || !accessToken) {
         return Promise.resolve(false);
@@ -1991,41 +1982,6 @@ function createFileInDrive(content, silent) {
         if (!silent) {
             updateDriveStatus(`Backup failed: ${error.message}`);
             showSaveStatus('error');
-        }
-    });
-}
-
-function updateFileInDrive(content, silent) {
-    fetch(`https://www.googleapis.com/upload/drive/v3/files/${currentFileId}?uploadType=media&fields=id,name,modifiedTime`, {
-        method: 'PATCH',
-        headers: new Headers({
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'text/plain'
-        }),
-        body: content
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            throw new Error(data.error.message);
-        }
-        
-        if (!silent) {
-            updateDriveStatus(`Backup updated: ${BACKUP_FILE_NAME}<br>Last updated: ${new Date().toLocaleTimeString()}`);
-            showSaveStatus('backed-up');
-        }
-    })
-    .catch(error => {
-        console.error('Update error:', error);
-        if (error.message.includes('404') || error.message.includes('File not found')) {
-            currentFileId = null;
-            localStorage.removeItem('focusWriterFileId');
-            createFileInDrive(content, silent);
-        } else {
-            if (!silent) {
-                updateDriveStatus(`Backup update failed: ${error.message}`);
-                showSaveStatus('error');
-            }
         }
     });
 }
