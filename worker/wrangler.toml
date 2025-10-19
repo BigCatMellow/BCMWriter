@@ -1,4 +1,4 @@
-name = "bcmwriter-api"
+name = "bcmwriter"
 main = "src/index.js"
 compatibility_date = "2025-01-01"
 
@@ -8,5 +8,5 @@ id = "2ce2a8daf192495bba413fc8a1f6c4a6"
 preview_id = "2ce2a8daf192495bba413fc8a1f6c4a6"
 
 [vars]
-FRONTEND_URL = "https://bigcatmellow.github.io"
-GOOGLE_DRIVE_FOLDER = "1HDSoa7EThzo15nkwWlb2RURzBWNxSIAe"
+FRONTEND_URL = "https://bigcatmellow.github.io/BCMWriter"
+GOOGLE_CLIENT_ID = "179725097519-q2noefkgn8unt14epnqobv1gmti3607t.apps.googleusercontent.com"

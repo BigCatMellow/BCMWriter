@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-	<link rel="manifest" href="/BCMWriter/manifest.json">
+	<link rel="manifest" href="./manifest.json">
 
     <style>
         * {
@@ -922,7 +922,7 @@
          id="editor"
          placeholder="Start writing.">
     </div>
-    <div class="goal-countdown" id="goalCountdown">500 remaining</div>
+    <div class="goal-countdown" id="goalCountdown"></div>
   </div>
 </div>
 
@@ -1174,7 +1174,7 @@ function showInstallButton() {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/BCMWriter/service-worker.js')
+    navigator.serviceWorker.register('./service-worker.js')
       .then((registration) => {
         console.log('✓ Service Worker registered:', registration.scope);
       })
@@ -1506,7 +1506,7 @@ function updateGoalDisplay() {
             goalSubtext.textContent = `${dailyWordGoal.toLocaleString()} words`;
         } else {
             goalNumber.textContent = remaining.toLocaleString();
-            goalSubtext.textContent = `of ${dailyWordGoal.toLocaleString()} remaining`;
+            goalSubtext.textContent = `of ${dailyWordGoal.toLocaleString()}`;
         }
         
         todayStatItem.style.display = 'block';
@@ -1705,6 +1705,20 @@ function startBackupTimer() {
     backupCountdown = setInterval(updateBackupTimer, 1000);
 }
 
+
+// === Canonical content helpers ===
+function getEditorHTML() {
+  const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+  return activeEditor.innerHTML;
+}
+
+function getEditorPlainText() {
+  const activeEditor = isInFocusMode ? focusEditor : currentEditor;
+  return activeEditor.textContent || "";
+}
+
+
+
 function stopBackupTimer() {
     if (autoBackupInterval) {
         clearInterval(autoBackupInterval);
@@ -1747,81 +1761,159 @@ function performAutoBackup() {
     }
 }
 
+async function findFileInFolder(name, folderId, accessToken) {
+  const query = `name='${BACKUP_FILE_NAME}' and '${TARGET_FOLDER_ID}' in parents and trashed=false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`;
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` }});
+  if (!res.ok) throw new Error('Drive search failed');
+  const data = await res.json();
+  return (data.files && data.files[0]) || null;
+}
+
+async function createFileInFolder(name, mimeType, content, folderId, accessToken) {
+  const metadata = { name, mimeType, parents: [folderId] };
+  const boundary = '-------314159265358979323846';
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelim = `\r\n--${boundary}--`;
+  const body =
+    delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) +
+    delimiter + `Content-Type: ${mimeType}\r\n\r\n` +
+    content + closeDelim;
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`
+    },
+    body
+  });
+  if (!res.ok) throw new Error('Drive create failed');
+  return res.json();
+}
+
+async function updateFileContent(fileId, mimeType, content, accessToken) {
+  const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=id,name`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': mimeType
+    },
+    body: content
+  });
+  if (!res.ok) throw new Error('Drive update failed');
+  return res.json();
+}
+
+async function upsertFile(name, mimeType, content, folderId, accessToken) {
+  const existing = await findFileInFolder(name, folderId, accessToken);
+  if (existing) return updateFileContent(existing.id, mimeType, content, accessToken);
+  return createFileInFolder(name, mimeType, content, folderId, accessToken);
+}
+
+async function backupToGoogleDriveDual(contentHTML) {
+  // 1) HTML canonical
+  await upsertFile('BCMWriter.html', 'text/html', contentHTML, TARGET_FOLDER_ID, accessToken);
+  // 2) TXT derived from the *current* editor state
+  const contentTXT = getEditorPlainText();
+  await upsertFile('BCMWriter.txt', 'text/plain', contentTXT, TARGET_FOLDER_ID, accessToken);
+}
+
+async function updateFileInDrive(contentHTML, silent = false) {
+  if (!currentFileId) throw new Error('No Drive file to update');
+  const res = await fetch(
+    `https://www.googleapis.com/upload/drive/v3/files/${currentFileId}?uploadType=media&fields=id,name,modifiedTime`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'text/html'
+      },
+      body: contentHTML
+    }
+  );
+  if (!res.ok) {
+    if (!silent) updateDriveStatus(`Update failed: HTTP ${res.status}`);
+    throw new Error(`Drive update failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+
+
 // ========================================
 // GOOGLE DRIVE - BACKUP FUNCTIONS
 // ========================================
 
 function backupToGoogleDrive(silent = false) {
-    // Check online status FIRST
-    if (!isOnline) {
-        const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-        const content = activeEditor.textContent;
-        
-        pendingSyncs.push({
-            content: content,
-            timestamp: Date.now()
-        });
-        localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
-        
-        if (!silent) {
-            updateDriveStatus('📡 Queued for sync when online');
-        }
-        return;
+  // 1) Offline: queue canonical HTML only
+  if (!isOnline) {
+    const contentHTML = getEditorHTML();
+    pendingSyncs.push({ contentHTML, timestamp: Date.now() });
+    localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+    if (!silent) updateDriveStatus('📡 Queued for sync when online');
+    return;
+  }
+
+  // 2) Auth checks
+  if (!isSignedIn || !accessToken) {
+    if (!silent) updateDriveStatus('Not connected to Google Drive');
+    return;
+  }
+  if (!TARGET_FOLDER_ID) {
+    if (!silent) updateDriveStatus('No backup folder set');
+    return;
+  }
+
+  // 3) UI feedback
+  if (!silent) {
+    updateDriveStatus('Backing up to Google Drive...');
+    showSaveStatus('backing-up');
+  }
+
+  // 4) Local canonical save (HTML)
+  const htmlNow = getEditorHTML();
+  localStorage.setItem('focusWriterContent', htmlNow);
+  localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+
+  // 5) Dual backup to Drive (HTML canonical + TXT derived)
+  (async () => {
+    try {
+      await backupToGoogleDriveDual(htmlNow);
+      if (!silent) {
+        showSaveStatus('saved');
+        updateDriveStatus('Saved (HTML + TXT)');
+      }
+    } catch (e) {
+      console.error('Backup failed:', e);
+      // On failure: queue HTML for later
+      pendingSyncs.push({ contentHTML: htmlNow, timestamp: Date.now() });
+      localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+      if (!silent) {
+        showSaveStatus('error');
+        updateDriveStatus('Backup failed — queued for later');
+      }
     }
-    
-    // Now check authentication
-    if (!isSignedIn || !accessToken) {
-        if (!silent) updateDriveStatus('Not connected to Google Drive');
-        return;
-    }
-    
-    if (!TARGET_FOLDER_ID) {
-        if (!silent) updateDriveStatus('No backup folder set');
-        return;
-    }
-    
-    if (!silent) {
-        updateDriveStatus('Backing up to Google Drive...');
-        showSaveStatus('backing-up');
-    }
-    
-    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-    const content = activeEditor.innerHTML;
-    
-    localStorage.setItem('focusWriterContent', activeEditor.innerHTML);
-    localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
-    
-    verifyCurrentFile().then(isValidFile => {
-        if (currentFileId && isValidFile) {
-            updateFileInDrive(content, silent);
-        } else {
-            if (currentFileId && !isValidFile) {
-                currentFileId = null;
-                localStorage.removeItem('focusWriterFileId');
-            }
-            createFileInDrive(content, silent);
-        }
-    });
+  })();
 }
 
+
+
 async function syncPendingChanges() {
-    if (pendingSyncs.length === 0) return;
-    if (!isOnline) return;
-    if (!isSignedIn || !accessToken) return;
-    
-    console.log(`Syncing ${pendingSyncs.length} pending changes...`);
-    updateDriveStatus(`Syncing ${pendingSyncs.length} pending changes...`);
-    
-while (pendingSyncs.length > 0) {
-  const sync = pendingSyncs[0]; // or pendingSyncs.at(0)
-  try {
-    await backupToGoogleDrive(true);
-    pendingSyncs.shift();
-    localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
-  } catch (error) {
-    break; // stop on first failure
+  while (pendingSyncs.length > 0) {
+    const { contentHTML } = pendingSyncs[0];
+    try {
+      await backupToGoogleDriveDual(contentHTML); // writes HTML + TXT
+      pendingSyncs.shift();
+      localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+    } catch (error) {
+      console.error('Sync failed:', error);
+      break; // stop on first failure; will retry later
+    }
   }
 }
+
 
     
     if (pendingSyncs.length === 0) {
@@ -1933,80 +2025,67 @@ function updateFileInDrive(content, silent) {
 }
 
 function loadFromGoogleDrive() {
-    if (!isSignedIn || !accessToken) {
-        updateDriveStatus('Not connected to Google Drive');
-        return;
-    }
-    
-    if (!TARGET_FOLDER_ID) {
-        updateDriveStatus('No backup folder set. Click "Set Backup Folder" first.');
-        return;
-    }
+  if (!isSignedIn || !accessToken) { updateDriveStatus('Not connected to Google Drive'); return; }
+  if (!TARGET_FOLDER_ID) { updateDriveStatus('No backup folder set. Click "Set Backup Folder" first.'); return; }
 
-    updateDriveStatus('Loading from Google Drive...');
-    showSaveStatus('loading');
+  updateDriveStatus('Loading from Google Drive...');
+  showSaveStatus('loading');
 
-    const query = `name='${BACKUP_FILE_NAME}' and '${TARGET_FOLDER_ID}' in parents and trashed=false`;
+  (async () => {
+    try {
+      // 1) Try HTML first
+      const htmlFile = await findFileInFolder('BCMWriter.html', TARGET_FOLDER_ID, accessToken);
+      if (htmlFile) {
+        const res = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${htmlFile.id}?alt=media`,
+          { headers: { 'Authorization': `Bearer ${accessToken}` } }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const html = await res.text();
+        (isInFocusMode ? focusEditor : currentEditor).innerHTML = html;
 
-    
-    fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`, {
-        method: 'GET',
-        headers: new Headers({
-            'Authorization': `Bearer ${accessToken}`
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            throw new Error(data.error.message);
-        }
-
-        if (!data.files || data.files.length === 0) {
-            updateDriveStatus('No backup file found in Google Drive. Start writing to create your first backup.');
-            showSaveStatus('saved');
-            return;
-        }
-
-        const file = data.files[0];
-        currentFileId = file.id;
-        localStorage.setItem('focusWriterFileId', currentFileId);
-
-        return fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
-            method: 'GET',
-            headers: new Headers({
-                'Authorization': `Bearer ${accessToken}`
-            })
-        });
-    })
-    .then(response => {
-        if (!response) return;
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        return response.text();
-    })
-    .then(content => {
-        if (!content && content !== '') return;
-
-        currentEditor.innerText = content;
-        focusEditor.innerText = content;
-        
-        localStorage.setItem('focusWriterContent', currentEditor.innerHTML);
+        // Mirror to localStorage
+        localStorage.setItem('focusWriterContent', getEditorHTML());
         localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
-        
+
         updateStats();
         showSaveStatus('loaded');
-        
-        updateDriveStatus(`Document loaded from Google Drive<br>${content.length} characters loaded<br>Auto-backup every 5 minutes`);
-    })
-    .catch(error => {
-        console.error('Load error:', error);
-        updateDriveStatus(`Failed to load from Google Drive: ${error.message}`);
-        showSaveStatus('error');
-    });
+        updateDriveStatus('Document loaded (HTML)');
+        return;
+      }
+
+      // 2) Fallback to TXT
+      const txtFile = await findFileInFolder('BCMWriter.txt', TARGET_FOLDER_ID, accessToken);
+      if (txtFile) {
+        const res = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${txtFile.id}?alt=media`,
+          { headers: { 'Authorization': `Bearer ${accessToken}` } }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const txt = await res.text();
+        (isInFocusMode ? focusEditor : currentEditor).textContent = txt;
+
+        // Mirror to localStorage (HTML snapshot of current editor)
+        localStorage.setItem('focusWriterContent', getEditorHTML());
+        localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+
+        updateStats();
+        showSaveStatus('loaded');
+        updateDriveStatus('Document loaded (TXT fallback)');
+        return;
+      }
+
+      // 3) Nothing found
+      updateDriveStatus('No backup file found in Google Drive.');
+      showSaveStatus('saved');
+    } catch (error) {
+      console.error('Load error:', error);
+      updateDriveStatus(`Failed to load from Google Drive: ${error.message}`);
+      showSaveStatus('error');
+    }
+  })();
 }
+
 
 function manualBackup() {
     if (!TARGET_FOLDER_ID) {
