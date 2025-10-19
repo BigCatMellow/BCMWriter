@@ -1,8 +1,10 @@
 const CACHE_NAME = 'bcmwriter-v1.0.0';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  '/BCMWriter/',
+  '/BCMWriter/index.html',
+  '/BCMWriter/manifest.json',
+  '/BCMWriter/icon-192.png',
+  '/BCMWriter/icon-512.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap'
 ];
 
