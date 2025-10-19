@@ -1174,7 +1174,7 @@ function showInstallButton() {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/BCMWriter/service-worker.js'
+    navigator.serviceWorker.register('/BCMWriter/service-worker.js')
       .then((registration) => {
         console.log('✓ Service Worker registered:', registration.scope);
       })
