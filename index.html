@@ -915,17 +915,17 @@
     </style>
 </head>
 <body>
-    <div class="writing-area" id="writingArea">
-<div class="editor-container">
+<div class="writing-area" id="writingArea">
+  <div class="editor-container">
     <div class="editor" 
          contenteditable="true" 
          id="editor"
-         placeholder="Start writing...">
+         placeholder="Start writing.">
     </div>
     <div class="goal-countdown" id="goalCountdown">500 remaining</div>
+  </div>
 </div>
-        </div>
-    </div>
+
 
     <button class="menu-button" id="menuButton">
         <div class="hamburger">
@@ -1812,22 +1812,17 @@ async function syncPendingChanges() {
     console.log(`Syncing ${pendingSyncs.length} pending changes...`);
     updateDriveStatus(`Syncing ${pendingSyncs.length} pending changes...`);
     
-    for (let i = 0; i < pendingSyncs.length; i++) {
-        const sync = pendingSyncs[i];
-        
-        try {
-            // Use the existing backup function
-            await backupToGoogleDrive(true);
-            
-            // Remove from pending queue
-            pendingSyncs.shift();
-            localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
-            
-        } catch (error) {
-            console.error('Sync failed:', error);
-            break; // Stop syncing on first failure
-        }
-    }
+while (pendingSyncs.length > 0) {
+  const sync = pendingSyncs[0]; // or pendingSyncs.at(0)
+  try {
+    await backupToGoogleDrive(true);
+    pendingSyncs.shift();
+    localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+  } catch (error) {
+    break; // stop on first failure
+  }
+}
+
     
     if (pendingSyncs.length === 0) {
         updateDriveStatus('✓ All changes synced!');
@@ -1951,7 +1946,8 @@ function loadFromGoogleDrive() {
     updateDriveStatus('Loading from Google Drive...');
     showSaveStatus('loading');
 
-    const query = `name='${BACKUP_FILE_NAME}' and parents in '${TARGET_FOLDER_ID}' and trashed=false`;
+    const query = `name='${BACKUP_FILE_NAME}' and '${TARGET_FOLDER_ID}' in parents and trashed=false`;
+
     
     fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`, {
         method: 'GET',
@@ -2473,13 +2469,14 @@ if (sessionIdParam) {
         updateDriveStatus('✓ Connected to Google Drive!');
         
         window.history.replaceState({}, document.title, window.location.pathname);
-    
-    if (!TARGET_FOLDER_ID) {
-        showSetupWizardStep2();
-    } else {
-        startBackupTimer();
-        loadFromGoogleDrive();
-    }
+        
+        if (!TARGET_FOLDER_ID) {
+            showSetupWizardStep2();
+        } else {
+            startBackupTimer();
+            loadFromGoogleDrive();
+        }
+    }  // ← This closing brace was missing!
 }
 
 // Check if we have existing session
