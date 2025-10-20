@@ -1,7 +1,22 @@
 // Cloudflare Worker: OAuth + Google Drive Proxy
 export default {
   async fetch(request, env, ctx) {
-    return handleRequest(request, env, ctx);
+    try {
+      return await handleRequest(request, env, ctx);
+    } catch (error) {
+      console.error('❌ WORKER CRASH:', error);
+      return new Response(JSON.stringify({ 
+        error: 'worker_crash', 
+        message: error.message,
+        stack: error.stack 
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
   }
 };
 
@@ -9,23 +24,38 @@ async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   const path = url.pathname;
 
+  console.log('📥 Request:', request.method, path);
+
   // CORS headers
-const corsHeaders = {
+  const corsHeaders = {
     'Access-Control-Allow-Origin': env.FRONTEND_URL || 'https://bigcatmellow.github.io',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true'
-};
+  };
 
   // Handle preflight
   if (request.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    console.log('✅ Handling CORS preflight');
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   try {
     // Health check
-    if (path === '/health') {
-      return jsonResponse({ ok: true, timestamp: Date.now() }, 200, corsHeaders);
+    if (path === '/health' || path === '/') {
+      return jsonResponse({ 
+        ok: true, 
+        timestamp: Date.now(),
+        env_check: {
+          has_client_id: !!env.GOOGLE_CLIENT_ID,
+          has_client_secret: !!env.GOOGLE_CLIENT_SECRET,
+          has_kv: !!env.SESSIONS,
+          frontend_url: env.FRONTEND_URL
+        }
+      }, 200, corsHeaders);
     }
 
     // OAuth routes
@@ -41,31 +71,18 @@ const corsHeaders = {
       return handleGetToken(request, env, corsHeaders);
     }
 
-    // Drive API routes
-    if (path === '/drive/upload') {
-      return handleDriveUpload(request, env, corsHeaders);
-    }
-    
-    if (path === '/drive/download') {
-      return handleDriveDownload(request, env, corsHeaders);
-    }
-    
-    if (path === '/drive/list') {
-      return handleDriveList(request, env, corsHeaders);
-    }
-
-    // Session info
-    if (path === '/session') {
-      return handleGetSession(request, env, corsHeaders);
-    }
-
-    return jsonResponse({ error: 'not_found', path }, 404, corsHeaders);
+    return jsonResponse({ 
+      error: 'not_found', 
+      path,
+      available_routes: ['/health', '/auth/start', '/auth/callback', '/auth/token']
+    }, 404, corsHeaders);
 
   } catch (error) {
-    console.error('Worker error:', error);
+    console.error('❌ Handler error:', error);
     return jsonResponse({ 
       error: 'internal_error', 
-      message: error.message 
+      message: error.message,
+      path: path
     }, 500, corsHeaders);
   }
 }
@@ -91,11 +108,17 @@ function randomId(length = 24) {
 }
 
 async function getSession(env, sessionId) {
+  if (!env.SESSIONS) {
+    throw new Error('KV namespace SESSIONS not bound');
+  }
   const data = await env.SESSIONS.get(sessionId);
   return data ? JSON.parse(data) : null;
 }
 
 async function saveSession(env, sessionId, data, ttlSeconds = 15552000) { // 180 days
+  if (!env.SESSIONS) {
+    throw new Error('KV namespace SESSIONS not bound');
+  }
   await env.SESSIONS.put(sessionId, JSON.stringify(data), {
     expirationTtl: ttlSeconds
   });
@@ -106,12 +129,15 @@ async function saveSession(env, sessionId, data, ttlSeconds = 15552000) { // 180
 // ========================================
 
 async function handleAuthStart(request, env, corsHeaders) {
+  console.log('🔐 Starting OAuth flow');
+  
   const url = new URL(request.url);
   const state = url.searchParams.get('state') || randomId(16);
 
-if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-    return Response.redirect(`${frontendUrl}?error=missing_credentials`, 302);
-}
+  if (!env.GOOGLE_CLIENT_ID) {
+    console.error('❌ Missing GOOGLE_CLIENT_ID');
+    return jsonResponse({ error: 'missing_google_client_id' }, 500, corsHeaders);
+  }
 
   const redirectUri = `${url.origin}/auth/callback`;
   
@@ -127,6 +153,7 @@ if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
   // Store state for validation
   await saveSession(env, `state:${state}`, { created: Date.now() }, 600);
 
+  console.log('✅ Redirecting to Google OAuth');
   return Response.redirect(authUrl.toString(), 302);
 }
 
@@ -135,6 +162,8 @@ if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
 // ========================================
 
 async function handleAuthCallback(request, env, corsHeaders) {
+  console.log('📞 OAuth callback received');
+  
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
@@ -143,34 +172,30 @@ async function handleAuthCallback(request, env, corsHeaders) {
   const frontendUrl = env.FRONTEND_URL || 'http://localhost:8788';
 
   if (error) {
-    console.error('OAuth error:', error);
+    console.error('❌ OAuth error:', error);
     return Response.redirect(`${frontendUrl}?error=${error}`, 302);
   }
 
   if (!code || !state) {
-    console.error('Missing code or state');
+    console.error('❌ Missing code or state');
     return Response.redirect(`${frontendUrl}?error=missing_code_or_state`, 302);
   }
 
   // Verify state
   const storedState = await getSession(env, `state:${state}`);
   if (!storedState) {
-    console.error('Invalid state');
+    console.error('❌ Invalid state');
     return Response.redirect(`${frontendUrl}?error=invalid_state`, 302);
   }
 
-  // 🔧 ADD DETAILED LOGGING
-  console.log('Checking credentials...');
-  console.log('GOOGLE_CLIENT_ID:', env.GOOGLE_CLIENT_ID ? 'SET' : 'MISSING');
-  console.log('GOOGLE_CLIENT_SECRET:', env.GOOGLE_CLIENT_SECRET ? 'SET' : 'MISSING');
-
+  // Check credentials
   if (!env.GOOGLE_CLIENT_ID) {
-    console.error('Missing GOOGLE_CLIENT_ID');
+    console.error('❌ Missing GOOGLE_CLIENT_ID');
     return Response.redirect(`${frontendUrl}?error=missing_client_id`, 302);
   }
   
   if (!env.GOOGLE_CLIENT_SECRET) {
-    console.error('Missing GOOGLE_CLIENT_SECRET');
+    console.error('❌ Missing GOOGLE_CLIENT_SECRET');
     return Response.redirect(`${frontendUrl}?error=missing_client_secret`, 302);
   }
 
@@ -178,7 +203,7 @@ async function handleAuthCallback(request, env, corsHeaders) {
 
   // Exchange code for tokens
   try {
-    console.log('Exchanging code for tokens...');
+    console.log('🔄 Exchanging code for tokens...');
     
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -192,29 +217,29 @@ async function handleAuthCallback(request, env, corsHeaders) {
       })
     });
 
-    console.log('Token response status:', tokenResponse.status);
+    console.log('📊 Token response status:', tokenResponse.status);
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('Token exchange failed:', errorText);
-      return Response.redirect(`${frontendUrl}?error=token_exchange_failed&details=${encodeURIComponent(errorText)}`, 302);
+      console.error('❌ Token exchange failed:', errorText);
+      return Response.redirect(`${frontendUrl}?error=token_exchange_failed`, 302);
     }
 
     const tokens = await tokenResponse.json();
-    console.log('Tokens received:', {
+    console.log('✅ Tokens received:', {
       has_access: !!tokens.access_token,
       has_refresh: !!tokens.refresh_token,
       expires_in: tokens.expires_in
     });
 
     if (!tokens.access_token) {
-      console.error('No access token in response');
+      console.error('❌ No access token in response');
       return Response.redirect(`${frontendUrl}?error=no_access_token`, 302);
     }
 
     // Generate session ID
     const sessionId = randomId(32);
-    console.log('Generated session ID:', sessionId);
+    console.log('🆔 Generated session ID');
 
     // Store session with tokens
     await saveSession(env, sessionId, {
@@ -225,14 +250,14 @@ async function handleAuthCallback(request, env, corsHeaders) {
       created: Date.now()
     });
 
-    console.log('Session saved successfully');
+    console.log('✅ Session saved, redirecting to app');
 
     // Redirect back to app with ONLY session_id
     return Response.redirect(`${frontendUrl}?session_id=${sessionId}&state=${state}`, 302);
 
   } catch (error) {
-    console.error('OAuth callback error:', error);
-    return Response.redirect(`${frontendUrl}?error=internal_error&details=${encodeURIComponent(error.message)}`, 302);
+    console.error('❌ OAuth callback error:', error);
+    return Response.redirect(`${frontendUrl}?error=internal_error`, 302);
   }
 }
 
@@ -241,6 +266,8 @@ async function handleAuthCallback(request, env, corsHeaders) {
 // ========================================
 
 async function handleGetToken(request, env, corsHeaders) {
+  console.log('🎫 Get token request');
+  
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'method_not_allowed' }, 405, corsHeaders);
   }
@@ -249,18 +276,25 @@ async function handleGetToken(request, env, corsHeaders) {
     const body = await request.json();
     const sessionId = body.session_id;
 
+    console.log('🔍 Looking up session');
+
     if (!sessionId) {
+      console.error('❌ Missing session_id');
       return jsonResponse({ error: 'missing_session_id' }, 400, corsHeaders);
     }
 
     const session = await getSession(env, sessionId);
 
     if (!session) {
+      console.error('❌ Invalid session');
       return jsonResponse({ error: 'invalid_session' }, 401, corsHeaders);
     }
 
+    console.log('✅ Session found');
+
     // Check if access token is still valid
     if (session.access_token && Date.now() < session.expires_at) {
+      console.log('✅ Returning cached access token');
       return jsonResponse({
         access_token: session.access_token,
         expires_in: Math.floor((session.expires_at - Date.now()) / 1000)
@@ -268,8 +302,16 @@ async function handleGetToken(request, env, corsHeaders) {
     }
 
     // Need to refresh token
+    console.log('🔄 Token expired, refreshing...');
+    
     if (!session.refresh_token) {
+      console.error('❌ No refresh token');
       return jsonResponse({ error: 'no_refresh_token' }, 401, corsHeaders);
+    }
+
+    if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+      console.error('❌ Missing credentials for refresh');
+      return jsonResponse({ error: 'missing_credentials' }, 500, corsHeaders);
     }
 
     const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -285,11 +327,12 @@ async function handleGetToken(request, env, corsHeaders) {
 
     if (!refreshResponse.ok) {
       const errorText = await refreshResponse.text();
-      console.error('Token refresh failed:', errorText);
+      console.error('❌ Token refresh failed:', errorText);
       return jsonResponse({ error: 'token_refresh_failed' }, 502, corsHeaders);
     }
 
     const newTokens = await refreshResponse.json();
+    console.log('✅ New tokens received');
 
     // Update session
     session.access_token = newTokens.access_token;
@@ -299,6 +342,7 @@ async function handleGetToken(request, env, corsHeaders) {
     }
 
     await saveSession(env, sessionId, session);
+    console.log('✅ Session updated');
 
     return jsonResponse({
       access_token: newTokens.access_token,
@@ -306,260 +350,10 @@ async function handleGetToken(request, env, corsHeaders) {
     }, 200, corsHeaders);
 
   } catch (error) {
-    console.error('Get token error:', error);
-    return jsonResponse({ error: 'internal_error' }, 500, corsHeaders);
+    console.error('❌ Get token error:', error);
+    return jsonResponse({ 
+      error: 'internal_error',
+      message: error.message 
+    }, 500, corsHeaders);
   }
-}
-
-// ========================================
-// GOOGLE DRIVE: UPLOAD
-// ========================================
-
-async function handleDriveUpload(request, env, corsHeaders) {
-  if (request.method !== 'POST') {
-    return jsonResponse({ error: 'method_not_allowed' }, 405, corsHeaders);
-  }
-
-  try {
-    const body = await request.json();
-    const { session_id, content, file_name, file_id } = body;
-
-    if (!session_id || !content) {
-      return jsonResponse({ error: 'missing_required_fields' }, 400, corsHeaders);
-    }
-
-    // Get fresh access token
-    const tokenRequest = new Request(`${new URL(request.url).origin}/auth/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id })
-    });
-
-    const tokenResponse = await handleGetToken(tokenRequest, env, corsHeaders);
-    const tokenData = await tokenResponse.json();
-
-    if (tokenData.error) {
-      return jsonResponse(tokenData, tokenResponse.status, corsHeaders);
-    }
-
-    const accessToken = tokenData.access_token;
-
-    // Upload or update file
-    let driveResponse;
-
-    if (file_id) {
-      // Update existing file
-      driveResponse = await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${file_id}?uploadType=media`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'text/plain'
-          },
-          body: content
-        }
-      );
-    } else {
-      // Create new file
-      const metadata = {
-        name: file_name || 'focus-writer-backup.txt',
-        mimeType: 'text/plain'
-      };
-
-      const boundary = '-------314159265358979323846';
-      const delimiter = `\r\n--${boundary}\r\n`;
-      const closeDelimiter = `\r\n--${boundary}--`;
-
-      const multipartBody = 
-        delimiter +
-        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-        JSON.stringify(metadata) +
-        delimiter +
-        'Content-Type: text/plain\r\n\r\n' +
-        content +
-        closeDelimiter;
-
-      driveResponse = await fetch(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': `multipart/related; boundary=${boundary}`
-          },
-          body: multipartBody
-        }
-      );
-    }
-
-    if (!driveResponse.ok) {
-      const errorText = await driveResponse.text();
-      console.error('Drive upload failed:', errorText);
-      return jsonResponse({ 
-        error: 'drive_upload_failed',
-        status: driveResponse.status,
-        detail: errorText
-      }, 502, corsHeaders);
-    }
-
-    const result = await driveResponse.json();
-    return jsonResponse(result, 200, corsHeaders);
-
-  } catch (error) {
-    console.error('Upload error:', error);
-    return jsonResponse({ error: 'internal_error', message: error.message }, 500, corsHeaders);
-  }
-}
-
-// ========================================
-// GOOGLE DRIVE: DOWNLOAD
-// ========================================
-
-async function handleDriveDownload(request, env, corsHeaders) {
-  if (request.method !== 'POST') {
-    return jsonResponse({ error: 'method_not_allowed' }, 405, corsHeaders);
-  }
-
-  try {
-    const body = await request.json();
-    const { session_id, file_id } = body;
-
-    if (!session_id || !file_id) {
-      return jsonResponse({ error: 'missing_required_fields' }, 400, corsHeaders);
-    }
-
-    // Get fresh access token
-    const tokenRequest = new Request(`${new URL(request.url).origin}/auth/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id })
-    });
-
-    const tokenResponse = await handleGetToken(tokenRequest, env, corsHeaders);
-    const tokenData = await tokenResponse.json();
-
-    if (tokenData.error) {
-      return jsonResponse(tokenData, tokenResponse.status, corsHeaders);
-    }
-
-    const accessToken = tokenData.access_token;
-
-    // Download file
-    const driveResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${file_id}?alt=media`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      }
-    );
-
-    if (!driveResponse.ok) {
-      const errorText = await driveResponse.text();
-      return jsonResponse({ 
-        error: 'drive_download_failed',
-        status: driveResponse.status
-      }, 502, corsHeaders);
-    }
-
-    const content = await driveResponse.text();
-    return jsonResponse({ content }, 200, corsHeaders);
-
-  } catch (error) {
-    console.error('Download error:', error);
-    return jsonResponse({ error: 'internal_error' }, 500, corsHeaders);
-  }
-}
-
-// ========================================
-// GOOGLE DRIVE: LIST FILES
-// ========================================
-
-async function handleDriveList(request, env, corsHeaders) {
-  if (request.method !== 'POST') {
-    return jsonResponse({ error: 'method_not_allowed' }, 405, corsHeaders);
-  }
-
-  try {
-    const body = await request.json();
-    const { session_id, file_name } = body;
-
-    if (!session_id) {
-      return jsonResponse({ error: 'missing_session_id' }, 400, corsHeaders);
-    }
-
-    // Get fresh access token
-    const tokenRequest = new Request(`${new URL(request.url).origin}/auth/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id })
-    });
-
-    const tokenResponse = await handleGetToken(tokenRequest, env, corsHeaders);
-    const tokenData = await tokenResponse.json();
-
-    if (tokenData.error) {
-      return jsonResponse(tokenData, tokenResponse.status, corsHeaders);
-    }
-
-    const accessToken = tokenData.access_token;
-
-    // Search for file
-    const query = file_name 
-      ? `name='${file_name}' and trashed=false`
-      : 'trashed=false';
-
-    const driveResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)&pageSize=10`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      }
-    );
-
-    if (!driveResponse.ok) {
-      return jsonResponse({ 
-        error: 'drive_list_failed',
-        status: driveResponse.status
-      }, 502, corsHeaders);
-    }
-
-    const result = await driveResponse.json();
-    return jsonResponse(result, 200, corsHeaders);
-
-  } catch (error) {
-    console.error('List error:', error);
-    return jsonResponse({ error: 'internal_error' }, 500, corsHeaders);
-  }
-}
-
-// ========================================
-// SESSION INFO
-// ========================================
-
-async function handleGetSession(request, env, corsHeaders) {
-  const url = new URL(request.url);
-  const sessionId = url.searchParams.get('id') || url.searchParams.get('session_id');
-
-  if (!sessionId) {
-    return jsonResponse({ error: 'missing_session_id' }, 400, corsHeaders);
-  }
-
-  const session = await getSession(env, sessionId);
-
-  if (!session) {
-    return jsonResponse({ error: 'session_not_found' }, 404, corsHeaders);
-  }
-
-  // Don't expose sensitive tokens
-  const safeSession = {
-    provider: session.provider,
-    created: session.created,
-    has_refresh_token: !!session.refresh_token,
-    has_access_token: !!session.access_token
-  };
-
-  return jsonResponse({ session: safeSession, session_id: sessionId }, 200, corsHeaders);
 }
