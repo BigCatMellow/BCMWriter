@@ -2083,6 +2083,12 @@ function loadFromGoogleDrive() {
 
 
 function manualBackup() {
+    console.log('Manual backup called');
+    console.log('isSignedIn:', isSignedIn);
+    console.log('sessionId:', sessionId);
+    console.log('accessToken:', accessToken ? 'EXISTS' : 'NULL');
+    console.log('TARGET_FOLDER_ID:', TARGET_FOLDER_ID);
+	
     if (!TARGET_FOLDER_ID) {
         updateDriveStatus('No backup folder set. Click "Set Backup Folder" first.');
         return;
