@@ -3,8 +3,9 @@ const ASSETS_TO_CACHE = [
   '/BCMWriter/',
   '/BCMWriter/index.html',
   '/BCMWriter/manifest.json',
-  '/BCMWriter/icon-192.png',
-  '/BCMWriter/icon-512.png',
+  // Remove these lines until you add the icons:
+  // '/BCMWriter/icon-192.png',
+  // '/BCMWriter/icon-512.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap'
 ];
 
@@ -12,9 +13,18 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Add files one by one to handle 404s gracefully
+      return Promise.allSettled(
+        ASSETS_TO_CACHE.map(url => 
+          cache.add(url).catch(err => {
+            console.warn(`Failed to cache ${url}:`, err);
+          })
+        )
+      );
     })
   );
+  // Force activate immediately
+  self.skipWaiting();
 });
 
 // Fetch: Serve from cache when offline
@@ -22,7 +32,10 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
       // Return cached version or fetch from network
-      return response || fetch(event.request);
+      return response || fetch(event.request).catch(() => {
+        // Return a basic offline page if needed
+        return new Response('Offline', { status: 503 });
+      });
     })
   );
 });
@@ -38,6 +51,9 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+      // Take control immediately
+      return self.clients.claim();
     })
   );
 });
