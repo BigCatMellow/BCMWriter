@@ -1,19 +1,17 @@
-const CACHE_NAME = 'bcmwriter-v1.0.0';
+const CACHE_NAME = 'bcmwriter-v1.0.1'; // Changed version to force update
 const ASSETS_TO_CACHE = [
   '/BCMWriter/',
   '/BCMWriter/index.html',
   '/BCMWriter/manifest.json',
-  // Remove these lines until you add the icons:
-  // '/BCMWriter/icon-192.png',
-  // '/BCMWriter/icon-512.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap'
 ];
 
 // Install: Cache app assets
 self.addEventListener('install', (event) => {
+  console.log('Service Worker: Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Add files one by one to handle 404s gracefully
+      console.log('Service Worker: Caching files');
       return Promise.allSettled(
         ASSETS_TO_CACHE.map(url => 
           cache.add(url).catch(err => {
@@ -21,20 +19,52 @@ self.addEventListener('install', (event) => {
           })
         )
       );
+    }).then(() => {
+      console.log('Service Worker: Installed');
+      return self.skipWaiting(); // Activate immediately
     })
   );
-  // Force activate immediately
-  self.skipWaiting();
 });
 
-// Fetch: Serve from cache when offline
+// Fetch: Serve from cache for assets, allow API calls through
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  
+  // 🔧 CRITICAL FIX: Don't intercept API calls to Cloudflare Worker
+  if (url.hostname === 'bcmwriter.goldenjanitors.workers.dev') {
+    console.log('Service Worker: Allowing API call through:', url.href);
+    return; // Let the request go through normally
+  }
+  
+  // 🔧 Don't intercept Google API calls
+  if (url.hostname.includes('googleapis.com') || url.hostname.includes('accounts.google.com')) {
+    console.log('Service Worker: Allowing Google API through:', url.href);
+    return;
+  }
+  
+  // For app assets, try cache first, then network
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Return cached version or fetch from network
-      return response || fetch(event.request).catch(() => {
-        // Return a basic offline page if needed
-        return new Response('Offline', { status: 503 });
+      if (response) {
+        console.log('Service Worker: Serving from cache:', event.request.url);
+        return response;
+      }
+      
+      // Not in cache, fetch from network
+      console.log('Service Worker: Fetching from network:', event.request.url);
+      return fetch(event.request).catch(err => {
+        console.error('Service Worker: Fetch failed:', err);
+        // Only return offline page for navigation requests
+        if (event.request.mode === 'navigate') {
+          return new Response('App is offline. Please check your connection.', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: new Headers({
+              'Content-Type': 'text/plain'
+            })
+          });
+        }
+        throw err;
       });
     })
   );
@@ -42,18 +72,20 @@ self.addEventListener('fetch', (event) => {
 
 // Activate: Clean up old caches
 self.addEventListener('activate', (event) => {
+  console.log('Service Worker: Activating...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Service Worker: Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     }).then(() => {
-      // Take control immediately
-      return self.clients.claim();
+      console.log('Service Worker: Activated');
+      return self.clients.claim(); // Take control immediately
     })
   );
 });
