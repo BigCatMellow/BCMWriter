@@ -109,9 +109,9 @@ async function handleAuthStart(request, env, corsHeaders) {
   const url = new URL(request.url);
   const state = url.searchParams.get('state') || randomId(16);
 
-  if (!env.GOOGLE_CLIENT_ID) {
-    return jsonResponse({ error: 'missing_google_client_id' }, 500, corsHeaders);
-  }
+if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+    return Response.redirect(`${frontendUrl}?error=missing_credentials`, 302);
+}
 
   const redirectUri = `${url.origin}/auth/callback`;
   
