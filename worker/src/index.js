@@ -10,12 +10,12 @@ async function handleRequest(request, env, ctx) {
   const path = url.pathname;
 
   // CORS headers
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': env.FRONTEND_URL || '*',
+const corsHeaders = {
+    'Access-Control-Allow-Origin': env.FRONTEND_URL || 'https://bigcatmellow.github.io',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true'
-  };
+};
 
   // Handle preflight
   if (request.method === 'OPTIONS') {
