@@ -20,10 +20,7 @@ Your work saves automatically to your browser. Press **Ctrl+S** to download.
 
 ## Optional: Google Drive Backup
 
-Want cloud backup? [Follow the setup guide](SETUP.md) (takes 10 minutes).
-
 - Auto-backup every 5 minutes
-- You control your own credentials
 - Works across all your devices
 - Completely private and secure
 

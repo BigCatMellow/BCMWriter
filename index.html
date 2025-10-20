@@ -2539,24 +2539,43 @@ if (sessionIdParam) {
         localStorage.setItem('focusWriterSessionId', sessionId);
         isSignedIn = true;
         
-        updateDriveUI();
-        updateDriveStatus('✓ Connected to Google Drive!');
-        
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        if (!TARGET_FOLDER_ID) {
-            showSetupWizardStep2();
-        } else {
-            startBackupTimer();
-            loadFromGoogleDrive();
-        }
-    }  // ← This closing brace was missing!
+        // IMMEDIATELY FETCH ACCESS TOKEN AFTER OAUTH
+        updateDriveStatus('Fetching access token...');
+        refreshAccessToken().then(success => {
+            if (success) {
+                updateDriveUI();
+                updateDriveStatus('✓ Connected to Google Drive!');
+                
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                if (!TARGET_FOLDER_ID) {
+                    showSetupWizardStep2();
+                } else {
+                    startBackupTimer();
+                    loadFromGoogleDrive();
+                }
+            } else {
+                updateDriveStatus('Failed to get access token. Please try connecting again.');
+                isSignedIn = false;
+                sessionId = null;
+                localStorage.removeItem('focusWriterSessionId');
+            }
+        });
+    }
 }
 
 // Check if we have existing session
 if (localStorage.getItem('focusWriterSessionId')) {
     sessionId = localStorage.getItem('focusWriterSessionId');
     isSignedIn = true;
+    
+    // RESTORE ACCESS TOKEN FROM LOCALSTORAGE
+    accessToken = localStorage.getItem('focusWriterAccessToken');
+    const storedExpiry = localStorage.getItem('focusWriterTokenExpiry');
+    if (storedExpiry) {
+        tokenExpiry = parseInt(storedExpiry);
+    }
+    
     updateDriveUI();
     
     if (TARGET_FOLDER_ID) {
