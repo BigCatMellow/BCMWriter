@@ -2083,16 +2083,39 @@ function loadFromGoogleDrive() {
 
 
 function manualBackup() {
-    console.log('Manual backup called');
-    console.log('isSignedIn:', isSignedIn);
-    console.log('sessionId:', sessionId);
-    console.log('accessToken:', accessToken ? 'EXISTS' : 'NULL');
-    console.log('TARGET_FOLDER_ID:', TARGET_FOLDER_ID);
-	
-    if (!TARGET_FOLDER_ID) {
-        updateDriveStatus('No backup folder set. Click "Set Backup Folder" first.');
+    console.log('🔍 Manual backup diagnostics:');
+    console.log('  - isSignedIn:', isSignedIn);
+    console.log('  - sessionId:', sessionId ? 'EXISTS' : 'NULL');
+    console.log('  - accessToken:', accessToken ? 'EXISTS (length: ' + accessToken.length + ')' : 'NULL');
+    console.log('  - tokenExpiry:', tokenExpiry ? new Date(tokenExpiry).toISOString() : 'NULL');
+    console.log('  - TARGET_FOLDER_ID:', TARGET_FOLDER_ID ? 'EXISTS' : 'NULL');
+    
+    if (!isSignedIn) {
+        updateDriveStatus('❌ Not signed in to Google Drive');
         return;
     }
+    
+    if (!accessToken) {
+        updateDriveStatus('❌ No access token. Attempting to refresh...');
+        refreshAccessToken().then(success => {
+            if (success) {
+                console.log('✅ Token refreshed, retrying backup');
+                manualBackup(); // Retry after refresh
+            } else {
+                updateDriveStatus('❌ Failed to refresh token. Please reconnect.');
+                isSignedIn = false;
+                updateDriveUI();
+            }
+        });
+        return;
+    }
+    
+    if (!TARGET_FOLDER_ID) {
+        updateDriveStatus('❌ No backup folder set. Click "Set Backup Folder" first.');
+        return;
+    }
+    
+    console.log('✅ All checks passed, proceeding with backup');
     backupToGoogleDrive(false);
 }
 
@@ -2545,13 +2568,43 @@ if (sessionIdParam) {
         localStorage.setItem('focusWriterSessionId', sessionId);
         isSignedIn = true;
         
-        // IMMEDIATELY FETCH ACCESS TOKEN AFTER OAUTH
-        updateDriveStatus('Fetching access token...');
-        refreshAccessToken().then(success => {
-            if (success) {
+        // 🔧 FIXED: Properly fetch access token after OAuth
+        updateDriveStatus('Connecting to Google Drive...');
+        
+        fetch(`${WORKER_URL}/auth/token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_id: sessionId
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            if (data.access_token) {
+                accessToken = data.access_token;
+                tokenExpiry = Date.now() + ((data.expires_in || 3600) * 1000);
+                
+                // Store tokens
+                localStorage.setItem('focusWriterAccessToken', accessToken);
+                localStorage.setItem('focusWriterTokenExpiry', tokenExpiry.toString());
+                
+                console.log('✅ Access token obtained successfully');
+                
                 updateDriveUI();
                 updateDriveStatus('✓ Connected to Google Drive!');
                 
+                // Clean URL
                 window.history.replaceState({}, document.title, window.location.pathname);
                 
                 if (!TARGET_FOLDER_ID) {
@@ -2561,12 +2614,21 @@ if (sessionIdParam) {
                     loadFromGoogleDrive();
                 }
             } else {
-                updateDriveStatus('Failed to get access token. Please try connecting again.');
-                isSignedIn = false;
-                sessionId = null;
-                localStorage.removeItem('focusWriterSessionId');
+                throw new Error('No access token in response');
             }
+        })
+        .catch(error => {
+            console.error('❌ Token fetch failed:', error);
+            updateDriveStatus('Failed to get access token: ' + error.message);
+            isSignedIn = false;
+            sessionId = null;
+            localStorage.removeItem('focusWriterSessionId');
+            updateDriveUI();
         });
+    } else {
+        console.error('❌ Invalid OAuth state');
+        updateDriveStatus('Invalid authentication state');
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
 
