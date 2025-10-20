@@ -143,27 +143,43 @@ async function handleAuthCallback(request, env, corsHeaders) {
   const frontendUrl = env.FRONTEND_URL || 'http://localhost:8788';
 
   if (error) {
+    console.error('OAuth error:', error);
     return Response.redirect(`${frontendUrl}?error=${error}`, 302);
   }
 
   if (!code || !state) {
+    console.error('Missing code or state');
     return Response.redirect(`${frontendUrl}?error=missing_code_or_state`, 302);
   }
 
   // Verify state
   const storedState = await getSession(env, `state:${state}`);
   if (!storedState) {
+    console.error('Invalid state');
     return Response.redirect(`${frontendUrl}?error=invalid_state`, 302);
   }
 
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-    return Response.redirect(`${frontendUrl}?error=missing_credentials`, 302);
+  // 🔧 ADD DETAILED LOGGING
+  console.log('Checking credentials...');
+  console.log('GOOGLE_CLIENT_ID:', env.GOOGLE_CLIENT_ID ? 'SET' : 'MISSING');
+  console.log('GOOGLE_CLIENT_SECRET:', env.GOOGLE_CLIENT_SECRET ? 'SET' : 'MISSING');
+
+  if (!env.GOOGLE_CLIENT_ID) {
+    console.error('Missing GOOGLE_CLIENT_ID');
+    return Response.redirect(`${frontendUrl}?error=missing_client_id`, 302);
+  }
+  
+  if (!env.GOOGLE_CLIENT_SECRET) {
+    console.error('Missing GOOGLE_CLIENT_SECRET');
+    return Response.redirect(`${frontendUrl}?error=missing_client_secret`, 302);
   }
 
   const redirectUri = `${url.origin}/auth/callback`;
 
   // Exchange code for tokens
   try {
+    console.log('Exchanging code for tokens...');
+    
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -176,20 +192,29 @@ async function handleAuthCallback(request, env, corsHeaders) {
       })
     });
 
+    console.log('Token response status:', tokenResponse.status);
+
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
       console.error('Token exchange failed:', errorText);
-      return Response.redirect(`${frontendUrl}?error=token_exchange_failed`, 302);
+      return Response.redirect(`${frontendUrl}?error=token_exchange_failed&details=${encodeURIComponent(errorText)}`, 302);
     }
 
     const tokens = await tokenResponse.json();
+    console.log('Tokens received:', {
+      has_access: !!tokens.access_token,
+      has_refresh: !!tokens.refresh_token,
+      expires_in: tokens.expires_in
+    });
 
     if (!tokens.access_token) {
+      console.error('No access token in response');
       return Response.redirect(`${frontendUrl}?error=no_access_token`, 302);
     }
 
     // Generate session ID
     const sessionId = randomId(32);
+    console.log('Generated session ID:', sessionId);
 
     // Store session with tokens
     await saveSession(env, sessionId, {
@@ -200,12 +225,14 @@ async function handleAuthCallback(request, env, corsHeaders) {
       created: Date.now()
     });
 
+    console.log('Session saved successfully');
+
     // Redirect back to app with ONLY session_id
     return Response.redirect(`${frontendUrl}?session_id=${sessionId}&state=${state}`, 302);
 
   } catch (error) {
     console.error('OAuth callback error:', error);
-    return Response.redirect(`${frontendUrl}?error=internal_error`, 302);
+    return Response.redirect(`${frontendUrl}?error=internal_error&details=${encodeURIComponent(error.message)}`, 302);
   }
 }
 
