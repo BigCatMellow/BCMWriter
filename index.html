@@ -2124,19 +2124,15 @@ function manualBackup() {
 // ========================================
 
 function refreshAccessToken() {
-    if (!sessionId || !WORKER_URL || WORKER_URL.includes('your-worker')) {
+    if (!sessionId || !WORKER_URL) {
         console.error('Cannot refresh: missing session ID or worker URL');
         return Promise.resolve(false);
     }
     
-    return fetch(`${WORKER_URL}/auth/refresh`, {
+    return fetch(`${WORKER_URL}/auth/token`, {  // or /auth/refresh - both work
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            session_id: sessionId
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId })
     })
     .then(response => {
         if (!response.ok) {
@@ -2555,56 +2551,39 @@ if (errorParam) {
     window.history.replaceState({}, document.title, window.location.pathname);
 }
 
+// In index.html, around line 1120 (after OAuth callback)
 if (sessionIdParam) {
-    // Verify CSRF state
     const stateParam = urlParams.get('state');
     const storedState = sessionStorage.getItem('oauth_state');
     
     if (stateParam && storedState && stateParam === storedState) {
-        // Valid OAuth callback
         sessionStorage.removeItem('oauth_state');
         
         sessionId = sessionIdParam;
         localStorage.setItem('focusWriterSessionId', sessionId);
         isSignedIn = true;
         
-        // 🔧 FIXED: Properly fetch access token after OAuth
-        updateDriveStatus('Connecting to Google Drive...');
+        updateDriveStatus('Fetching access token...');
         
+        // 🔧 FIX: This should be a dedicated function to get the initial token
         fetch(`${WORKER_URL}/auth/token`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                session_id: sessionId
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId })
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
             if (data.access_token) {
                 accessToken = data.access_token;
-                tokenExpiry = Date.now() + ((data.expires_in || 3600) * 1000);
+                tokenExpiry = Date.now() + (data.expires_in * 1000);
                 
-                // Store tokens
+                // Store tokens locally
                 localStorage.setItem('focusWriterAccessToken', accessToken);
                 localStorage.setItem('focusWriterTokenExpiry', tokenExpiry.toString());
-                
-                console.log('✅ Access token obtained successfully');
                 
                 updateDriveUI();
                 updateDriveStatus('✓ Connected to Google Drive!');
                 
-                // Clean URL
                 window.history.replaceState({}, document.title, window.location.pathname);
                 
                 if (!TARGET_FOLDER_ID) {
@@ -2614,24 +2593,18 @@ if (sessionIdParam) {
                     loadFromGoogleDrive();
                 }
             } else {
-                throw new Error('No access token in response');
+                throw new Error('No access token received');
             }
         })
         .catch(error => {
-            console.error('❌ Token fetch failed:', error);
-            updateDriveStatus('Failed to get access token: ' + error.message);
+            console.error('Token fetch error:', error);
+            updateDriveStatus('Failed to get access token. Please try connecting again.');
             isSignedIn = false;
             sessionId = null;
             localStorage.removeItem('focusWriterSessionId');
-            updateDriveUI();
         });
-    } else {
-        console.error('❌ Invalid OAuth state');
-        updateDriveStatus('Invalid authentication state');
-        window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
-
 // Check if we have existing session
 if (localStorage.getItem('focusWriterSessionId')) {
     sessionId = localStorage.getItem('focusWriterSessionId');
