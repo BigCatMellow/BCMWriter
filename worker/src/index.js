@@ -23,21 +23,33 @@ export default {
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   const path = url.pathname;
-
+  
+  // Get the origin from the request
+  const requestOrigin = request.headers.get('Origin');
+  
   console.log('📥 Request:', request.method, path);
+  console.log('🌐 Request Origin:', requestOrigin);
 
-  // CORS headers
-<<<<<<< HEAD
-const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://bigcatmellow.github.io',  // Remove path
-=======
+  // CORS headers - Always allow bigcatmellow.github.io
+  const allowedOrigins = [
+    'https://bigcatmellow.github.io',
+    'http://localhost:8788',
+    'http://127.0.0.1:8788'
+  ];
+  
+  // Check if request origin is allowed, if not use first allowed origin
+  const allowOrigin = (requestOrigin && allowedOrigins.includes(requestOrigin)) 
+    ? requestOrigin 
+    : 'https://bigcatmellow.github.io';
+  
+  console.log('✅ Allowing Origin:', allowOrigin);
+
   const corsHeaders = {
-    'Access-Control-Allow-Origin': env.FRONTEND_URL || 'https://bigcatmellow.github.io',
->>>>>>> 672a70affc35c64b6ceda0a3e0b1dee497c73cf1
+    'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true'
-};
+  };
 
   // Handle preflight
   if (request.method === 'OPTIONS') {
@@ -58,7 +70,9 @@ const corsHeaders = {
           has_client_id: !!env.GOOGLE_CLIENT_ID,
           has_client_secret: !!env.GOOGLE_CLIENT_SECRET,
           has_kv: !!env.SESSIONS,
-          frontend_url: env.FRONTEND_URL
+          frontend_url: env.FRONTEND_URL,
+          request_origin: requestOrigin,
+          allowed_origin: allowOrigin
         }
       }, 200, corsHeaders);
     }
@@ -174,7 +188,7 @@ async function handleAuthCallback(request, env, corsHeaders) {
   const state = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
-  const frontendUrl = env.FRONTEND_URL || 'http://localhost:8788';
+  const frontendUrl = env.FRONTEND_URL || 'https://bigcatmellow.github.io/BCMWriter';
 
   if (error) {
     console.error('❌ OAuth error:', error);
