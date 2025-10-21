@@ -27,8 +27,13 @@ async function handleRequest(request, env, ctx) {
   console.log('📥 Request:', request.method, path);
 
   // CORS headers
+<<<<<<< HEAD
 const corsHeaders = {
     'Access-Control-Allow-Origin': 'https://bigcatmellow.github.io',  // Remove path
+=======
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': env.FRONTEND_URL || 'https://bigcatmellow.github.io',
+>>>>>>> 672a70affc35c64b6ceda0a3e0b1dee497c73cf1
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true'
