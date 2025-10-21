@@ -1797,8 +1797,20 @@ function performAutoBackup() {
 async function findFileInFolder(name, folderId, accessToken) {
   const query = `name='${name}' and '${folderId}' in parents and trashed=false`;
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`;
-  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` }});
-  if (!res.ok) throw new Error('Drive search failed');
+  
+  console.log('🔍 Searching for:', name, 'in folder:', folderId);
+  
+  const res = await fetch(url, { 
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  
+  // ADD BETTER ERROR HANDLING:
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('❌ Drive search failed:', res.status, errorText);
+    throw new Error(`Drive search failed: ${res.status} ${res.statusText}`);
+  }
+  
   const data = await res.json();
   return (data.files && data.files[0]) || null;
 }
@@ -1909,6 +1921,22 @@ function backupToGoogleDrive(silent = false) {
   const htmlNow = getEditorHTML();
   localStorage.setItem('focusWriterContent', htmlNow);
   localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
+  
+  
+  if (tokenExpiry && Date.now() > tokenExpiry - (5 * 60 * 1000)) {
+  console.log('⚠️ Token expired, refreshing...');
+  refreshAccessToken().then(success => {
+    if (success) {
+      backupToGoogleDrive(silent); // Retry with fresh token
+    } else {
+      if (!silent) {
+        updateDriveStatus('Session expired. Please reconnect.');
+        stopBackupTimer();
+      }
+    }
+  });
+  return; // Exit and let retry handle it
+}  
 
   // 5) Dual backup to Drive (HTML canonical + TXT derived)
   (async () => {
