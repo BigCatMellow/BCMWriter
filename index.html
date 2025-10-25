@@ -1848,21 +1848,33 @@ function updateBackupTimer() {
 }
 
 function performAutoBackup() {
-    if (!isSignedIn || !accessToken || !TARGET_FOLDER_ID) {
+    if (!isSignedIn || !TARGET_FOLDER_ID) {
         return;
     }
     
-    if (tokenExpiry && Date.now() > tokenExpiry - (5 * 60 * 1000)) {
+    // Always check token validity before backup
+    if (!accessToken || !tokenExpiry || Date.now() > tokenExpiry - (5 * 60 * 1000)) {
+        console.log('⚠️ Token expired or missing, refreshing before auto-backup...');
         refreshAccessToken().then(refreshed => {
             if (refreshed) {
-                backupToGoogleDrive(true); // ⚠️ silent=true might skip modal UI
+                console.log('✅ Token refreshed, proceeding with backup');
+                backupToGoogleDrive(true);
             } else {
+                console.log('❌ Token refresh failed');
                 updateDriveStatus('Session expired. Please reconnect to continue auto-backup.');
                 stopBackupTimer();
+                isSignedIn = false;
+                updateDriveUI();
             }
+        }).catch(error => {
+            console.error('Token refresh error:', error);
+            updateDriveStatus('Session expired. Please reconnect.');
+            stopBackupTimer();
+            isSignedIn = false;
+            updateDriveUI();
         });
     } else {
-        backupToGoogleDrive(true); // ⚠️ silent=true might affect modal display
+        backupToGoogleDrive(true);
     }
 }
 
@@ -2225,15 +2237,25 @@ async function backupToGoogleDrive(silent = false) {
         return;
     }
 
-    // Auth checks
-    if (!isSignedIn || !accessToken) {
-        if (!silent) updateDriveStatus('Not connected to Google Drive');
-        return;
-    }
-    if (!TARGET_FOLDER_ID) {
-        if (!silent) updateDriveStatus('No backup folder set');
-        return;
-    }
+// Auth checks
+if (!isSignedIn) {
+    if (!silent) updateDriveStatus('Not connected to Google Drive');
+    return;
+}
+if (!TARGET_FOLDER_ID) {
+    if (!silent) updateDriveStatus('No backup folder set');
+    return;
+}
+
+// Ensure token is valid before proceeding
+const tokenValid = await ensureValidToken();
+if (!tokenValid) {
+    if (!silent) updateDriveStatus('Session expired. Please reconnect.');
+    stopBackupTimer();
+    isSignedIn = false;
+    updateDriveUI();
+    return;
+}
 
     // CHECK FOR CONFLICTS BEFORE SAVING
     const conflictCheck = await checkForConflict();
@@ -2579,14 +2601,22 @@ async function ensureValidToken() {
     }
     
     // Check if token is expired or about to expire (within 5 minutes)
-    if (tokenExpiry && Date.now() > tokenExpiry - (5 * 60 * 1000)) {
+    const now = Date.now();
+    const expiryBuffer = 5 * 60 * 1000; // 5 minutes
+    
+    if (!tokenExpiry || now > tokenExpiry - expiryBuffer) {
         console.log('⚠️ Token expired or expiring soon, refreshing...');
+        console.log('  Current time:', new Date(now).toISOString());
+        console.log('  Token expiry:', tokenExpiry ? new Date(tokenExpiry).toISOString() : 'NULL');
+        
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
             console.log('❌ Token refresh failed');
             return false;
         }
         console.log('✅ Token refreshed successfully');
+    } else {
+        console.log('✅ Token still valid');
     }
     
     return true;
