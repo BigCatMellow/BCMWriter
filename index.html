@@ -369,6 +369,65 @@
         .goal-modal.active {
             display: block;
         }
+		
+		.conflict-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #2a2a2a;
+    border: 2px solid #cc6666;
+    border-radius: 8px;
+    width: min(500px, 90vw);
+    z-index: 1002;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+    display: none;
+}
+
+.conflict-modal.active {
+    display: block;
+}
+
+.conflict-modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #3a3a3a;
+    background: linear-gradient(135deg, #4a2d2d 0%, #2a2a2a 100%);
+}
+
+.conflict-modal-header h2 {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.conflict-modal-content {
+    padding: 30px;
+}
+
+.conflict-modal-content p {
+    color: #ccc;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.conflict-modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.conflict-modal-buttons button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+		
 
         .goal-modal-header {
             padding: 20px;
@@ -1049,6 +1108,14 @@ input[type="number"] {
             </div>
         </div>
     </div>
+	
+	<div class="conflict-modal" id="conflictModal">
+    <div class="conflict-modal-header">
+        <h2>Version Conflict Detected</h2>
+    </div>
+    <div class="conflict-modal-content" id="conflictModalContent">
+    </div>
+</div>
 
     <div class="floating-toolbar" id="floatingToolbar">
         <button class="floating-toolbar-btn" onclick="applyMarkdown('bold')" title="Bold (Ctrl+B)">
@@ -1144,6 +1211,11 @@ let autoBackupInterval = null;
 let backupCountdown = null;
 let nextBackupTime = null;
 const BACKUP_INTERVAL = 5 * 60 * 1000;
+
+let isInConflictState = false;
+let conflictTimeout = null;
+let lastKnownModifiedTime = null;
+const CONFLICT_TIMEOUT_DURATION = 5 * 60 * 1000; // 5 minutes
 
 let floatingToolbar = null;
 let lastSelection = null;
@@ -1795,24 +1867,29 @@ function performAutoBackup() {
 }
 
 async function findFileInFolder(name, folderId, accessToken) {
-  const query = `name='${name}' and '${folderId}' in parents and trashed=false`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`;
-  
-  console.log('🔍 Searching for:', name, 'in folder:', folderId);
-  
-  const res = await fetch(url, { 
-    headers: { 'Authorization': `Bearer ${accessToken}` }
-  });
-  
-  // ADD BETTER ERROR HANDLING:
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error('❌ Drive search failed:', res.status, errorText);
-    throw new Error(`Drive search failed: ${res.status} ${res.statusText}`);
-  }
-  
-  const data = await res.json();
-  return (data.files && data.files[0]) || null;
+    const query = `name='${name}' and '${folderId}' in parents and trashed=false`;
+    const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`;
+    
+    console.log('🔍 Searching for:', name, 'in folder:', folderId);
+    
+    const res = await fetch(url, { 
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    
+    if (!res.ok) {
+        const errorText = await res.text();
+        console.error('❌ Drive search failed:', res.status, errorText);
+        
+        // ✨ ADD SPECIFIC ERROR HANDLING
+        if (res.status === 401) {
+            throw new Error('UNAUTHORIZED'); // Special flag for auth errors
+        }
+        
+        throw new Error(`Drive search failed: ${res.status} ${res.statusText}`);
+    }
+    
+    const data = await res.json();
+    return (data.files && data.files[0]) || null;
 }
 
 async function createFileInFolder(name, mimeType, content, folderId, accessToken) {
@@ -1853,13 +1930,22 @@ async function updateFileContent(fileId, mimeType, content, accessToken) {
 
 async function upsertFile(name, mimeType, content, folderId, accessToken) {
   const existing = await findFileInFolder(name, folderId, accessToken);
-  if (existing) return updateFileContent(existing.id, mimeType, content, accessToken);
+  if (existing) {
+    const updated = await updateFileContent(existing.id, mimeType, content, accessToken);
+    return { id: existing.id, ...updated }; // ✨ Return the ID
+  }
   return createFileInFolder(name, mimeType, content, folderId, accessToken);
 }
-
 async function backupToGoogleDriveDual(contentHTML) {
   // 1) HTML canonical
-  await upsertFile('BCMWriter.html', 'text/html', contentHTML, TARGET_FOLDER_ID, accessToken);
+  const htmlFile = await upsertFile('BCMWriter.html', 'text/html', contentHTML, TARGET_FOLDER_ID, accessToken);
+  
+  // ✨ TRACK THE FILE ID FOR CONFLICT DETECTION
+  if (htmlFile && htmlFile.id) {
+    currentFileId = htmlFile.id;
+    localStorage.setItem('focusWriterFileId', currentFileId);
+  }
+  
   // 2) TXT derived from the *current* editor state
   const contentTXT = getEditorPlainText();
   await upsertFile('BCMWriter.txt', 'text/plain', contentTXT, TARGET_FOLDER_ID, accessToken);
@@ -1886,77 +1972,294 @@ async function updateFileInDrive(contentHTML, silent = false) {
 }
 
 
+// ========================================
+// CONFLICT DETECTION & RESOLUTION
+// ========================================
+
+async function checkForConflict() {
+    if (!currentFileId || !accessToken) {
+        return { hasConflict: false };
+    }
+    
+    try {
+        const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${currentFileId}?fields=modifiedTime`,
+            {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            }
+        );
+        
+        if (!response.ok) {
+            return { hasConflict: false };
+        }
+        
+        const data = await response.json();
+        const driveModifiedTime = new Date(data.modifiedTime).getTime();
+        const localLastSaved = new Date(localStorage.getItem('focusWriterLastSaved') || 0).getTime();
+        
+        // If Drive version is newer than our last save, we have a conflict
+        if (driveModifiedTime > localLastSaved + 5000) { // 5 second buffer
+            return {
+                hasConflict: true,
+                driveModifiedTime: data.modifiedTime
+            };
+        }
+        
+        return { hasConflict: false };
+        
+    } catch (error) {
+        console.error('Error checking for conflict:', error);
+        return { hasConflict: false };
+    }
+}
+
+function showConflictModal(step = 1) {
+    const modal = document.getElementById('conflictModal');
+    const content = document.getElementById('conflictModalContent');
+    const overlay = document.getElementById('overlay');
+    
+    if (step === 1) {
+        content.innerHTML = `
+            <p style="color: #cc6666; font-weight: 600; margin-bottom: 15px;">
+                ⚠️ A newer version of this document exists in Google Drive
+            </p>
+            <p style="margin-bottom: 20px;">
+                Another device may have made changes after your last save. 
+                Overriding will replace the newer version with your current work.
+            </p>
+            <p style="color: #aaa; font-size: 12px; margin-bottom: 20px;">
+                <strong>Note:</strong> The newer version will be saved as a backup before overriding.
+            </p>
+            <div class="conflict-modal-buttons">
+                <button class="danger" onclick="showConflictModal(2)">Yes, Override</button>
+                <button class="secondary" onclick="cancelConflictOverride()">No, Cancel</button>
+            </div>
+        `;
+    } else if (step === 2) {
+        content.innerHTML = `
+            <p style="color: #ff6666; font-weight: 600; margin-bottom: 15px;">
+                ⚠️ CONFIRM OVERRIDE
+            </p>
+            <p style="margin-bottom: 20px;">
+                Are you absolutely sure you want to override the newer version? 
+                This action cannot be undone.
+            </p>
+            <p style="color: #aaa; font-size: 12px; margin-bottom: 20px;">
+                The newer version will be backed up as: <code>BCMWriter-backup-[timestamp].html</code>
+            </p>
+            <div class="conflict-modal-buttons">
+                <button class="danger" onclick="confirmConflictOverride()">Yes, I'm Sure</button>
+                <button class="secondary" onclick="cancelConflictOverride()">Cancel</button>
+            </div>
+        `;
+    }
+    
+    modal.classList.add('active');
+    overlay.classList.add('active');
+    isInConflictState = true;
+    
+    // Start timeout timer
+    startConflictTimeout();
+}
+
+function hideConflictModal() {
+    document.getElementById('conflictModal').classList.remove('active');
+    if (!isMenuOpen) {
+        document.getElementById('overlay').classList.remove('active');
+    }
+}
+
+function startConflictTimeout() {
+    if (conflictTimeout) {
+        clearTimeout(conflictTimeout);
+    }
+    
+    conflictTimeout = setTimeout(() => {
+        handleConflictTimeout();
+    }, CONFLICT_TIMEOUT_DURATION);
+}
+
+function handleConflictTimeout() {
+    hideConflictModal();
+    disconnectDueToConflict();
+}
+
+function disconnectDueToConflict() {
+    // Disconnect from Drive
+    stopBackupTimer();
+    isInConflictState = false;
+    
+    localStorage.removeItem('focusWriterAccessToken');
+    localStorage.removeItem('focusWriterTokenExpiry');
+    localStorage.removeItem('focusWriterSessionId');
+    
+    accessToken = null;
+    tokenExpiry = null;
+    sessionId = null;
+    isSignedIn = false;
+    updateDriveUI();
+    
+    // Show disconnection modal
+    showDisconnectionModal();
+}
+
+function showDisconnectionModal() {
+    const modal = document.getElementById('conflictModal');
+    const content = document.getElementById('conflictModalContent');
+    const overlay = document.getElementById('overlay');
+    
+    content.innerHTML = `
+        <p style="color: #cc6666; font-weight: 600; margin-bottom: 15px;">
+            🔒 Disconnected from Google Drive
+        </p>
+        <p style="margin-bottom: 20px;">
+            You've been automatically disconnected due to a version conflict timeout. 
+            This prevents accidental data loss.
+        </p>
+        <p style="color: #aaa; font-size: 12px; margin-bottom: 20px;">
+            Your work is still saved locally. Reconnect to Google Drive when you're ready to sync.
+        </p>
+        <div class="conflict-modal-buttons">
+            <button class="primary" onclick="hideConflictModal()">OK</button>
+        </div>
+    `;
+    
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function cancelConflictOverride() {
+    if (conflictTimeout) {
+        clearTimeout(conflictTimeout);
+    }
+    hideConflictModal();
+    isInConflictState = false;
+    updateDriveStatus('Backup cancelled - newer version exists in Drive');
+}
+
+async function confirmConflictOverride() {
+    if (conflictTimeout) {
+        clearTimeout(conflictTimeout);
+    }
+    
+    hideConflictModal();
+    updateDriveStatus('Creating backup of newer version...');
+    
+    try {
+        // Download the newer version from Drive
+        const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${currentFileId}?alt=media`,
+            {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            }
+        );
+        
+        if (!response.ok) throw new Error('Failed to download newer version');
+        
+        const newerContent = await response.text();
+        
+        // Create backup file
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupFileName = `BCMWriter-backup-${timestamp}.html`;
+        
+        await createFileInFolder(
+            backupFileName,
+            'text/html',
+            newerContent,
+            TARGET_FOLDER_ID,
+            accessToken
+        );
+        
+        updateDriveStatus('Backup created. Overriding with your version...');
+        
+        // Now proceed with the override
+        isInConflictState = false;
+        await backupToGoogleDriveDual(getEditorHTML());
+        
+        updateDriveStatus('✓ Override complete. Backup saved.');
+        showSaveStatus('saved');
+        
+    } catch (error) {
+        console.error('Error during conflict resolution:', error);
+        updateDriveStatus(`Failed to create backup: ${error.message}`);
+        isInConflictState = false;
+    }
+}
+
+
+
 
 // ========================================
 // GOOGLE DRIVE - BACKUP FUNCTIONS
 // ========================================
 
-function backupToGoogleDrive(silent = false) {
-  // 1) Offline: queue canonical HTML only
-  if (!isOnline) {
-    const contentHTML = getEditorHTML();
-    pendingSyncs.push({ contentHTML, timestamp: Date.now() });
-    localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
-    if (!silent) updateDriveStatus('📡 Queued for sync when online');
-    return;
-  }
-
-  // 2) Auth checks
-  if (!isSignedIn || !accessToken) {
-    if (!silent) updateDriveStatus('Not connected to Google Drive');
-    return;
-  }
-  if (!TARGET_FOLDER_ID) {
-    if (!silent) updateDriveStatus('No backup folder set');
-    return;
-  }
-
-  // 3) UI feedback
-  if (!silent) {
-    updateDriveStatus('Backing up to Google Drive...');
-    showSaveStatus('backing-up');
-  }
-
-  // 4) Local canonical save (HTML)
-  const htmlNow = getEditorHTML();
-  localStorage.setItem('focusWriterContent', htmlNow);
-  localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
-  
-  
-  if (tokenExpiry && Date.now() > tokenExpiry - (5 * 60 * 1000)) {
-  console.log('⚠️ Token expired, refreshing...');
-  refreshAccessToken().then(success => {
-    if (success) {
-      backupToGoogleDrive(silent); // Retry with fresh token
-    } else {
-      if (!silent) {
-        updateDriveStatus('Session expired. Please reconnect.');
-        stopBackupTimer();
-      }
+async function backupToGoogleDrive(silent = false) {
+    // Don't backup if we're in a conflict state
+    if (isInConflictState) {
+        if (!silent) updateDriveStatus('Backup paused due to conflict');
+        return;
     }
-  });
-  return; // Exit and let retry handle it
-}  
+    
+    // Offline: queue canonical HTML only
+    if (!isOnline) {
+        const contentHTML = getEditorHTML();
+        pendingSyncs.push({ contentHTML, timestamp: Date.now() });
+        localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+        if (!silent) updateDriveStatus('📡 Queued for sync when online');
+        return;
+    }
 
-  // 5) Dual backup to Drive (HTML canonical + TXT derived)
-  (async () => {
+    // Auth checks
+    if (!isSignedIn || !accessToken) {
+        if (!silent) updateDriveStatus('Not connected to Google Drive');
+        return;
+    }
+    if (!TARGET_FOLDER_ID) {
+        if (!silent) updateDriveStatus('No backup folder set');
+        return;
+    }
+
+    // CHECK FOR CONFLICTS BEFORE SAVING
+    const conflictCheck = await checkForConflict();
+    if (conflictCheck.hasConflict) {
+        stopBackupTimer(); // Pause auto-backup
+        showConflictModal(1);
+        return;
+    }
+
+    // UI feedback
+    if (!silent) {
+        updateDriveStatus('Backing up to Google Drive...');
+        showSaveStatus('backing-up');
+    }
+
+    // Local canonical save (HTML)
+    const htmlNow = getEditorHTML();
+    const saveTime = new Date().toISOString();
+    localStorage.setItem('focusWriterContent', htmlNow);
+    localStorage.setItem('focusWriterLastSaved', saveTime);
+
+    // Dual backup to Drive (HTML canonical + TXT derived)
     try {
-      await backupToGoogleDriveDual(htmlNow);
-      if (!silent) {
-        showSaveStatus('saved');
-        updateDriveStatus('Saved (HTML + TXT)');
-      }
+        await backupToGoogleDriveDual(htmlNow);
+        
+        // Update our known modified time after successful save
+        lastKnownModifiedTime = saveTime;
+        
+        if (!silent) {
+            showSaveStatus('saved');
+            updateDriveStatus('Saved (HTML + TXT)');
+        }
     } catch (e) {
-      console.error('Backup failed:', e);
-      // On failure: queue HTML for later
-      pendingSyncs.push({ contentHTML: htmlNow, timestamp: Date.now() });
-      localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
-      if (!silent) {
-        showSaveStatus('error');
-        updateDriveStatus('Backup failed — queued for later');
-      }
+        console.error('Backup failed:', e);
+        // On failure: queue HTML for later
+        pendingSyncs.push({ contentHTML: htmlNow, timestamp: Date.now() });
+        localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+        if (!silent) {
+            showSaveStatus('error');
+            updateDriveStatus('Backup failed — queued for later');
+        }
     }
-  })();
 }
 
 
@@ -2047,9 +2350,17 @@ function createFileInDrive(content, silent) {
     });
 }
 
-function loadFromGoogleDrive() {
+async function loadFromGoogleDrive() {
   if (!isSignedIn || !accessToken) { updateDriveStatus('Not connected to Google Drive'); return; }
   if (!TARGET_FOLDER_ID) { updateDriveStatus('No backup folder set. Click "Set Backup Folder" first.'); return; }
+
+  const tokenValid = await ensureValidToken();
+  if (!tokenValid) {
+    updateDriveStatus('Session expired. Please reconnect to Google Drive.');
+    isSignedIn = false;
+    updateDriveUI();
+    return;
+  }
 
   updateDriveStatus('Loading from Google Drive...');
   showSaveStatus('loading');
@@ -2059,6 +2370,8 @@ function loadFromGoogleDrive() {
       // 1) Try HTML first
       const htmlFile = await findFileInFolder('BCMWriter.html', TARGET_FOLDER_ID, accessToken);
       if (htmlFile) {
+	    currentFileId = htmlFile.id;
+  localStorage.setItem('focusWriterFileId', currentFileId);
         const res = await fetch(
           `https://www.googleapis.com/drive/v3/files/${htmlFile.id}?alt=media`,
           { headers: { 'Authorization': `Bearer ${accessToken}` } }
@@ -2067,7 +2380,6 @@ function loadFromGoogleDrive() {
         const html = await res.text();
         (isInFocusMode ? focusEditor : currentEditor).innerHTML = html;
 
-        // Mirror to localStorage
         localStorage.setItem('focusWriterContent', getEditorHTML());
         localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
 
@@ -2088,7 +2400,6 @@ function loadFromGoogleDrive() {
         const txt = await res.text();
         (isInFocusMode ? focusEditor : currentEditor).textContent = txt;
 
-        // Mirror to localStorage (HTML snapshot of current editor)
         localStorage.setItem('focusWriterContent', getEditorHTML());
         localStorage.setItem('focusWriterLastSaved', new Date().toISOString());
 
@@ -2101,9 +2412,24 @@ function loadFromGoogleDrive() {
       // 3) Nothing found
       updateDriveStatus('No backup file found in Google Drive.');
       showSaveStatus('saved');
+      
     } catch (error) {
+      // ✨ REPLACE THE EXISTING CATCH BLOCK (line 2077) WITH THIS:
       console.error('Load error:', error);
-      updateDriveStatus(`Failed to load from Google Drive: ${error.message}`);
+      
+      // Handle specific auth errors
+      if (error.message === 'UNAUTHORIZED' || error.message.includes('401')) {
+        updateDriveStatus('Session expired. Please reconnect to Google Drive.');
+        isSignedIn = false;
+        accessToken = null;
+        tokenExpiry = null;
+        localStorage.removeItem('focusWriterAccessToken');
+        localStorage.removeItem('focusWriterTokenExpiry');
+        updateDriveUI();
+      } else {
+        updateDriveStatus(`Failed to load from Google Drive: ${error.message}`);
+      }
+      
       showSaveStatus('error');
     }
   })();
@@ -2190,6 +2516,27 @@ function refreshAccessToken() {
         console.error('Token refresh failed:', error);
         return false;
     });
+}
+
+async function ensureValidToken() {
+    // Check if we have a token
+    if (!accessToken) {
+        console.log('❌ No access token');
+        return false;
+    }
+    
+    // Check if token is expired or about to expire (within 5 minutes)
+    if (tokenExpiry && Date.now() > tokenExpiry - (5 * 60 * 1000)) {
+        console.log('⚠️ Token expired or expiring soon, refreshing...');
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+            console.log('❌ Token refresh failed');
+            return false;
+        }
+        console.log('✅ Token refreshed successfully');
+    }
+    
+    return true;
 }
 
 function connectGoogleDrive() {
@@ -2676,6 +3023,8 @@ if (sessionIdParam) {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
+
+
 // Check if we have existing session
 if (localStorage.getItem('focusWriterSessionId')) {
     sessionId = localStorage.getItem('focusWriterSessionId');
@@ -2691,8 +3040,16 @@ if (localStorage.getItem('focusWriterSessionId')) {
     updateDriveUI();
     
     if (TARGET_FOLDER_ID) {
-        updateDriveStatus('Connected to Google Drive');
+        // ✨ ONLY START AUTO-BACKUP, DON'T AUTO-LOAD
+        // This prevents the 401 errors on initial page load
+        updateDriveStatus('Connected to Google Drive. Click "Load from Drive" to sync.');
         startBackupTimer();
+        
+        // Only auto-load if token is still valid
+        if (accessToken && tokenExpiry && Date.now() < tokenExpiry - (5 * 60 * 1000)) {
+            // Token is still valid, safe to auto-load
+            // (optional - remove this if you don't want auto-load at all)
+        }
     } else {
         updateDriveStatus('Connected. Set your backup folder to enable auto-backup.');
     }
@@ -2745,6 +3102,9 @@ window.saveExistingFolder = saveExistingFolder;
 window.createBackupFolder = createBackupFolder;
 window.closeSetupAndStartWriting = closeSetupAndStartWriting;
 window.applyMarkdown = applyMarkdown;
+window.showConflictModal = showConflictModal;
+window.cancelConflictOverride = cancelConflictOverride;
+window.confirmConflictOverride = confirmConflictOverride;
 
 console.log('✅ BCM Writer initialized successfully!');
 </script>
