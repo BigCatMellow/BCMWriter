@@ -19,7 +19,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a1a;
+            background: #1a1a1b;
             height: 100vh;
             overflow: hidden;
         }
@@ -36,13 +36,12 @@
         }
 
         .writing-area.menu-open {
-            margin-left: 350px;
         }
 
 .editor-container {
     width: min(800px, 90vw);
     height: 80vh;
-    background: #1a1a1a;
+    background: #1a1a1b;
     border: 1px solid rgba(42, 42, 42, 0.52);
     border-radius: 4px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
@@ -60,7 +59,7 @@
             font-size: 18px;
             font-weight: 400;
             line-height: 1.5;
-            color: #eaeaea;
+            color: #ddd9d4;
             background: transparent;
             resize: none;
             overflow-y: auto;
@@ -117,33 +116,39 @@
     text-indent: 0; /* Don't indent right after headings */
 }
 
-        .menu-button {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, .0);
-            border: 0px solid #3a3a3a;
-            color: #ffffff;
-            width: 44px;
-            height: 44px;
-            border-radius: 9px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease, opacity 0.25s ease;
-            opacity: 0.7;
-        }
-
-.menu-button.active {
-    left: 286px;  /* 350px (menu width) - 44px (button width) - 20px (margin) */
+.menu-button {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: rgba(42, 42, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(10px);
 }
 
-        .menu-button:hover {
-            background: rgba(0, 0, 0, .0);
-            opacity: 1;
-        }
+body:hover .menu-button,
+.menu-button:hover {
+    opacity: 0.4;
+}
+
+.menu-button:hover {
+    opacity: 1 !important;
+    background: rgba(42, 42, 42, 0.8);
+}
+
+.menu-button.active {
+    opacity: 1;
+}
 
         .menu-button .hamburger {
             width: 18px;
@@ -215,27 +220,38 @@
             color: #cc66cc;
         }
 
-        .menu-panel {
-            position: fixed;
-            top: 0;
-            left: -350px;
-            width: 350px;
-            height: 100vh;
+.menu-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    width: min(420px, 90vw);
+    max-height: 85vh;
     background: #1f1f1f;
-    border-right: 1px solid rgba(255,255,255,0.05);
-            z-index: 999;
-			overflow-y: auto;
-			transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    z-index: 999;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+}
 
-        .menu-panel.open {
-            left: 0;
-        }
+.menu-panel.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
 
-        .menu-header {
-            padding: 20px;
-            border-bottom: 1px solid #3a3a3a;
-        }
+.menu-header {
+    padding: 24px 24px 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+	text-align: center;
+}
 
         .menu-title {
             color: #ffffff;
@@ -249,22 +265,23 @@
             font-size: 13px;
         }
 
-        .menu-section {
-            padding: 24px 20px;
-            border-bottom: 1px solid #3a3a3a;
-        }
+.menu-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
 
-        .menu-section:last-child {
-            border-bottom: none;
-        }
+.menu-section:last-child {
+    border-bottom: none;
+}
 
-        .menu-section h3 {
-    margin-bottom: 14px;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-    color: #bbbbbb;
+.menu-section h3 {
+    margin-bottom: 12px;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    color: #888;
     text-transform: uppercase;
-        }
+    font-weight: 600;
+}
 
         .menu-buttons {
             display: flex;
@@ -273,77 +290,85 @@
         }
 
 .menu-button-item {
-    background: rgba(42, 42, 42, .5); /* Flat + translucent */
-    border: none;
-	width: 100%;          
-    display: block;       
-    text-align: center;   
+    background: linear-gradient(135deg, rgba(50, 50, 50, 0.6), rgba(42, 42, 42, 0.5));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    display: block;
+    text-align: center;
     padding: 12px 16px;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #f1f1f1;
     font-size: 14px;
     font-weight: 500;
-    backdrop-filter: blur(4px);
-    transition: background 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
 
 .menu-button-item:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: linear-gradient(135deg, rgba(60, 60, 60, 0.7), rgba(52, 52, 52, 0.6));
+    border-color: rgba(255, 255, 255, 0.12);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .menu-button-item:active {
     transform: translateY(0);
 }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 10px;
-        }
 
-        .stat-item {
-            background: rgba(42, 42, 42, .5);
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            cursor: default;
-        }
+.menu-content {
+    overflow-y: auto;
+    flex: 1;
+}
 
-        .stat-item.clickable {
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 8px;
+}
 
-        .stat-item.clickable:hover {
-            background: #2a2a2a;
-        }
+.stat-item {
+    background: rgba(42, 42, 42, 0.4);
+    padding: 16px 12px;
+    border-radius: 10px;
+    text-align: center;
+    cursor: default;
+}
+
+.stat-item.clickable {
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.stat-item.clickable:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
 
         .stat-item.goal-active {
             background: linear-gradient(135deg, #2d4a2d 0%, #3a3a3a 100%);
             border: 1px solid #4a7c4a;
         }
 
-        .stat-number {
-            color: #ffffff;
-            font-size: 18px;
-            font-weight: 600;
-            display: block;
-        }
+.stat-number {
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+}
 
         .stat-number.goal-number {
             color: #66cc66;
         }
 
-        .stat-label {
-            color: #888888;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-top: 4px;
-            display: block;
-        }
+.stat-label {
+    color: #888888;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
 
         .stat-sublabel {
             color: #666666;
@@ -544,72 +569,24 @@
             background: #8c5a5a;
         }
 
-        .focus-mode {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #0a0a0a;
-            z-index: 2000;
-            display: none;
-            flex-direction: column;
-        }
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 998;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-        .focus-mode .editor {
-            background: #0a0a0a;
-            color: #e8e8e8;
-            font-size: 21px;
-            font-weight: 400;
-            padding: 80px;
-            height: 100vh;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            letter-spacing: -0.01em;
-            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-        }
-
-        .focus-mode .editor::placeholder {
-            color: #444444;
-        }
-
-        .focus-exit {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #2a2a2a;
-            border: 1px solid #3a3a3a;
-            color: #ffffff;
-            padding: 12px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            z-index: 2001;
-            font-size: 13px;
-            font-weight: 500;
-            opacity: 0.7;
-        }
-
-        .focus-exit:hover {
-            background: #3a3a3a;
-            opacity: 1;
-        }
-
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 998;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
+.overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
 
         .setup-modal {
             position: fixed;
@@ -894,57 +871,50 @@
     opacity: 0;
 }
 
-        @media (max-width: 768px) {
-            .writing-area {
-                padding: 10px;
-            }
-            
-            .editor-container {
-                width: 100%;
-                height: 85vh;
-                border: none;
-                border-radius: 0;
-                box-shadow: none;
-            }
-            
-            .editor {
-                padding: 20px;
-                font-size: 16px;
-            }
+@media (max-width: 768px) {
+    .writing-area {
+        padding: 10px;
+    }
+    
+    .editor-container {
+        width: 100%;
+        height: 85vh;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    
+    .editor {
+        padding: 20px;
+        font-size: 16px;
+    }
 
-            .menu-panel {
-                width: 100%;
-                left: -100%;
-            }
+    .menu-panel {
+        width: 95vw;
+        max-height: 90vh;
+    }
 
-            .writing-area.menu-open {
-                margin-left: 0;
-            }
+    .menu-panel.open {
+        transform: translate(-50%, -50%) scale(1);
+    }
 
-            .focus-mode .editor {
-                padding: 20px;
-                font-size: 18px;
-            }
+    .setup-modal {
+        width: 95vw;
+        max-height: 90vh;
+    }
 
-            .setup-modal {
-                width: 95vw;
-                max-height: 90vh;
-            }
+    .setup-modal-content {
+        padding: 20px;
+    }
 
-            .setup-modal-content {
-                padding: 20px;
-            }
+    .setup-button-group {
+        flex-direction: column;
+    }
 
-            .setup-button-group {
-                flex-direction: column;
-            }
-
-            .setup-button-group button {
-                width: 100%;
-            }
-			
-			
-        }
+    .setup-button-group button {
+        width: 100%;
+    }
+}
 		
 		
 		.goal-progress-float {
@@ -1029,11 +999,11 @@ input[type="number"] {
 
     <div class="save-status saved" id="saveStatus">Saved</div>
 
-    <div class="menu-panel" id="menuPanel">
-        <div class="menu-header">
-            <div class="menu-title">Mellow Writer</div>
-            <div class="menu-subtitle">Distraction-free writing with auto-backup</div>
-        </div>
+<div class="menu-panel" id="menuPanel">
+    <div class="menu-header">
+        <div class="menu-title">Mellow Writer</div>
+        <div class="menu-subtitle">Distraction-free writing with auto-backup</div>
+    </div>
 
         <div class="menu-section">
             <h3>Google Drive Backup</h3>
@@ -1145,15 +1115,7 @@ input[type="number"] {
         </div>
     </div>
 
-    <div class="focus-mode" id="focusMode">
-        <button class="focus-exit" onclick="toggleFocusMode()">Exit Ultra Focus</button>
-        <div class="editor" 
-             contenteditable="true" 
-             id="focusEditor"
-             placeholder="Pure focus. Just you and your words.">
-        </div>
-    </div>
-	
+
 	<div class="goal-progress-float" id="goalProgressFloat">
     <span class="goal-progress-number" id="goalProgressNumber">0</span>
     <span class="goal-progress-label" id="goalProgressLabel">remaining</span>
@@ -1170,12 +1132,12 @@ input[type="number"] {
 // ========================================
 
 let currentEditor = document.getElementById('editor');
-let focusEditor = document.getElementById('focusEditor');
-let isInFocusMode = false;
 let saveTimeout;
 let isMenuOpen = false;
 let isOnline = navigator.onLine;
 let pendingSyncs = JSON.parse(localStorage.getItem('pendingSyncs') || '[]');
+let isInOfflineMode = false;
+let offlineChangesPending = false;
 
 const saveStatusElement = document.getElementById('saveStatus');
 const menuPanel = document.getElementById('menuPanel');
@@ -1322,7 +1284,6 @@ function toggleMenu() {
     menuPanel.classList.toggle('open', isMenuOpen);
     menuButton.classList.toggle('active', isMenuOpen);
     overlay.classList.toggle('active', isMenuOpen);
-    writingArea.classList.toggle('menu-open', isMenuOpen);
 }
 
 function closeMenu() {
@@ -1330,7 +1291,6 @@ function closeMenu() {
     menuPanel.classList.remove('open');
     menuButton.classList.remove('active');
     overlay.classList.remove('active');
-    writingArea.classList.remove('menu-open');
 }
 
 function openSetupModal(title, content) {
@@ -1352,7 +1312,6 @@ function closeSetupModal() {
 // ========================================
 
 function autoSave() {
-    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
     const content = activeEditor.innerHTML;
     
     showSaveStatus('saving');
@@ -1424,7 +1383,6 @@ function loadSavedContent() {
         const savedContent = localStorage.getItem('focusWriterContent');
         if (savedContent) {
             currentEditor.innerHTML = savedContent;
-            focusEditor.innerHTML = savedContent;
             updateStats();
         }
         
@@ -1444,23 +1402,13 @@ function clearSavedContent() {
     }
 }
 
-function syncEditors() {
-    if (isInFocusMode) {
-        currentEditor.innerHTML = focusEditor.innerHTML;
-    } else {
-        focusEditor.innerHTML = currentEditor.innerHTML;
-    }
-    updateStats();
-    debouncedAutoSave();
-}
 
 // ========================================
 // STATISTICS & GOAL TRACKING
 // ========================================
 
 function updateStats() {
-    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-    const text = activeEditor.innerText || activeEditor.textContent || '';
+    const text = currentEditor.innerText || currentEditor.textContent || '';
     const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
     const chars = text.length;
     
@@ -1481,8 +1429,7 @@ function checkDailyReset() {
     const today = new Date().toDateString();
     if (lastResetDate !== today) {
         todayWordCount = 0;
-        const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-        const text = activeEditor.innerText || activeEditor.textContent || '';
+        const text = currentEditor.innerText || currentEditor.textContent || '';
         const currentWords = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
         sessionStartWords = currentWords;
         lastResetDate = today;
@@ -1539,8 +1486,8 @@ function setDailyGoal() {
     dailyWordGoal = goal;
     localStorage.setItem('focusWriterDailyGoal', dailyWordGoal);
     
-    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-    const text = activeEditor.innerText || activeEditor.textContent || '';
+    const activeEditor = currentEditor;
+    const text = currentEditor.innerText || currentEditor.textContent || '';
     const currentWords = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
     
     sessionStartWords = currentWords;
@@ -1580,7 +1527,7 @@ function updateGoalDisplay() {
     const goalCountdown = document.getElementById('goalCountdown');
 
     // Update in-editor countdown
-    if (dailyWordGoal > 0 && !isInFocusMode) {
+    if (dailyWordGoal > 0) {
         const remaining = Math.max(0, dailyWordGoal - todayWordCount);
         const isComplete = todayWordCount >= dailyWordGoal;
         
@@ -1730,32 +1677,11 @@ function handleTextSelection() {
 }
 
 // ========================================
-// FOCUS MODE
-// ========================================
-
-function toggleFocusMode() {
-    const focusMode = document.getElementById('focusMode');
-    isInFocusMode = !isInFocusMode;
-    
-    if (isInFocusMode) {
-        syncEditors();
-        focusMode.style.display = 'flex';
-        focusEditor.focus();
-        closeMenu();
-    } else {
-        syncEditors();
-        focusMode.style.display = 'none';
-        currentEditor.focus();
-    }
-}
-
-// ========================================
 // DOCUMENT OPERATIONS
 // ========================================
 
 function saveDocument() {
-    const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-    const plainText = activeEditor.innerText || activeEditor.textContent || '';
+    const plainText = currentEditor.innerText || currentEditor.textContent || '';
     
     const blob = new Blob([plainText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -1813,13 +1739,11 @@ function startBackupTimer() {
 
 // === Canonical content helpers ===
 function getEditorHTML() {
-  const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-  return activeEditor.innerHTML;
+  return currentEditor.innerHTML;
 }
 
 function getEditorPlainText() {
-  const activeEditor = isInFocusMode ? focusEditor : currentEditor;
-  return activeEditor.textContent || "";
+  return currentEditor.textContent || "";
 }
 
 
@@ -1877,6 +1801,57 @@ function performAutoBackup() {
         backupToGoogleDrive(true);
     }
 }
+
+// ========================================
+// LOCAL BACKUP FUNCTIONS
+// ========================================
+
+function createLocalBackup(content, reason = 'manual') {
+    try {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `BCMWriter-local-backup-${reason}-${timestamp}.html`;
+        
+        const blob = new Blob([content], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        return filename;
+    } catch (error) {
+        console.error('Failed to create local backup:', error);
+        return null;
+    }
+}
+
+async function attemptReconnectionSilent() {
+    try {
+        const success = await refreshAccessToken();
+        if (success) {
+            console.log('✓ Reconnected successfully');
+            updateDriveStatus('✓ Reconnected! Syncing...');
+            
+            // Retry pending syncs
+            if (pendingSyncs.length > 0) {
+                await syncPendingChanges();
+            }
+            
+            // Restart auto-backup
+            startBackupTimer();
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Reconnection failed:', error);
+        return false;
+    }
+}
+
 
 async function findFileInFolder(name, folderId, accessToken) {
     const query = `name='${name}' and '${folderId}' in parents and trashed=false`;
@@ -2178,7 +2153,7 @@ async function confirmConflictOverride() {
         
         const newerContent = await response.text();
         
-        // Create backup file
+        // Create backup file in Drive
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const backupFileName = `BCMWriter-backup-${timestamp}.html`;
         
@@ -2190,26 +2165,41 @@ async function confirmConflictOverride() {
             accessToken
         );
         
-        updateDriveStatus('Backup created. Overriding with your version...');
+        // Also create local backup
+        const localBackupName = createLocalBackup(newerContent, 'conflict');
+        
+        if (localBackupName) {
+            updateDriveStatus(`Backups created (Drive + ${localBackupName}). Overriding...`);
+        } else {
+            updateDriveStatus('Drive backup created. Overriding...');
+        }
         
         // Now proceed with the override
         isInConflictState = false;
         await backupToGoogleDriveDual(getEditorHTML());
         
-        // ✨ CRITICAL: Update our last upload time after override
         const uploadTime = Date.now();
         localStorage.setItem('focusWriterLastUploadTime', uploadTime.toString());
         localStorage.setItem('focusWriterLastSaved', new Date(uploadTime).toISOString());
         
-        updateDriveStatus('✓ Override complete. Backup saved.');
+        updateDriveStatus('✓ Override complete. Backups saved.');
         showSaveStatus('saved');
         
-        // ✨ Restart auto-backup timer
         startBackupTimer();
         
     } catch (error) {
         console.error('Error during conflict resolution:', error);
-        updateDriveStatus(`Failed to create backup: ${error.message}`);
+        
+        // Create local backup of current content as fallback
+        const content = getEditorHTML();
+        const localBackupName = createLocalBackup(content, 'conflict-fallback');
+        
+        if (localBackupName) {
+            updateDriveStatus(`Drive backup failed. Local backup: ${localBackupName}`);
+        } else {
+            updateDriveStatus(`Backup failed: ${error.message}`);
+        }
+        
         isInConflictState = false;
     }
 }
@@ -2233,35 +2223,37 @@ async function backupToGoogleDrive(silent = false) {
         const contentHTML = getEditorHTML();
         pendingSyncs.push({ contentHTML, timestamp: Date.now() });
         localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+        offlineChangesPending = true;
+        localStorage.setItem('focusWriterOfflineChanges', 'true');
         if (!silent) updateDriveStatus('📡 Queued for sync when online');
         return;
     }
 
-// Auth checks
-if (!isSignedIn) {
-    if (!silent) updateDriveStatus('Not connected to Google Drive');
-    return;
-}
-if (!TARGET_FOLDER_ID) {
-    if (!silent) updateDriveStatus('No backup folder set');
-    return;
-}
+    // Auth checks
+    if (!isSignedIn) {
+        if (!silent) updateDriveStatus('Not connected to Google Drive');
+        return;
+    }
+    if (!TARGET_FOLDER_ID) {
+        if (!silent) updateDriveStatus('No backup folder set');
+        return;
+    }
 
-// Ensure token is valid before proceeding
-const tokenValid = await ensureValidToken();
-if (!tokenValid) {
-    if (!silent) updateDriveStatus('Session expired. Please reconnect.');
-    stopBackupTimer();
-    isSignedIn = false;
-    updateDriveUI();
-    return;
-}
+    // Ensure token is valid before proceeding
+    const tokenValid = await ensureValidToken();
+    if (!tokenValid) {
+        if (!silent) updateDriveStatus('Session expired. Please reconnect.');
+        stopBackupTimer();
+        isSignedIn = false;
+        updateDriveUI();
+        return;
+    }
 
     // CHECK FOR CONFLICTS BEFORE SAVING
     const conflictCheck = await checkForConflict();
     if (conflictCheck.hasConflict) {
         console.log('⚠️ Conflict detected - pausing backup');
-        stopBackupTimer(); // Pause auto-backup
+        stopBackupTimer();
         showConflictModal(1);
         return;
     }
@@ -2282,10 +2274,14 @@ if (!tokenValid) {
     try {
         await backupToGoogleDriveDual(htmlNow);
         
-        // ✨ CRITICAL: Track when WE uploaded to Drive, not just local save time
         const uploadTime = Date.now();
         localStorage.setItem('focusWriterLastUploadTime', uploadTime.toString());
         localStorage.setItem('focusWriterLastSaved', new Date(uploadTime).toISOString());
+        
+        // Clear offline mode flags on successful save
+        isInOfflineMode = false;
+        offlineChangesPending = false;
+        localStorage.removeItem('focusWriterOfflineChanges');
         
         if (!silent) {
             showSaveStatus('saved');
@@ -2293,12 +2289,61 @@ if (!tokenValid) {
         }
     } catch (e) {
         console.error('Backup failed:', e);
-        // On failure: queue HTML for later
-        pendingSyncs.push({ contentHTML: htmlNow, timestamp: Date.now() });
-        localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
-        if (!silent) {
-            showSaveStatus('error');
-            updateDriveStatus('Backup failed — queued for later');
+        
+        // Check if it's a connection error
+        const isConnectionError = 
+            e.message.includes('401') || 
+            e.message.includes('403') || 
+            e.message.includes('404') ||
+            e.message.includes('UNAUTHORIZED') ||
+            e.message.includes('Failed to fetch') ||
+            e.message.includes('NetworkError');
+        
+        if (isConnectionError) {
+            console.log('⚠️ Connection error detected, attempting reconnection...');
+            
+            // Try to reconnect once
+            const reconnected = await attemptReconnectionSilent();
+            
+            if (!reconnected) {
+                // Reconnection failed - enter offline mode
+                console.log('❌ Reconnection failed - entering offline mode');
+                isInOfflineMode = true;
+                offlineChangesPending = true;
+                localStorage.setItem('focusWriterOfflineChanges', 'true');
+                
+                const backupName = createLocalBackup(htmlNow, 'connection-error');
+                
+                if (backupName) {
+                    updateDriveStatus(`⚠️ Offline Mode: Backup saved as ${backupName}`);
+                } else {
+                    updateDriveStatus('⚠️ Offline Mode: Work saved locally');
+                }
+                
+                // Queue for later sync
+                pendingSyncs.push({ contentHTML: htmlNow, timestamp: Date.now() });
+                localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+                
+                // Stop auto-backup timer while offline
+                stopBackupTimer();
+                
+                if (!silent) {
+                    showSaveStatus('saving');
+                    saveStatusElement.textContent = '💾 Offline';
+                }
+            }
+        } else {
+            // Non-connection error - just queue for later
+            offlineChangesPending = true;
+            localStorage.setItem('focusWriterOfflineChanges', 'true');
+            
+            pendingSyncs.push({ contentHTML: htmlNow, timestamp: Date.now() });
+            localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+            
+            if (!silent) {
+                showSaveStatus('error');
+                updateDriveStatus('Backup failed — queued for later');
+            }
         }
     }
 }
@@ -2306,23 +2351,27 @@ if (!tokenValid) {
 
 
 async function syncPendingChanges() {
-  while (pendingSyncs.length > 0) {
-    const { contentHTML } = pendingSyncs[0];
-    try {
-      await backupToGoogleDriveDual(contentHTML); // writes HTML + TXT
-      pendingSyncs.shift();
-      localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
-    } catch (error) {
-      console.error('Sync failed:', error);
-      break; // stop on first failure; will retry later
+    while (pendingSyncs.length > 0) {
+        const { contentHTML } = pendingSyncs[0];
+        try {
+            await backupToGoogleDriveDual(contentHTML);
+            pendingSyncs.shift();
+            localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+        } catch (error) {
+            console.error('Sync failed:', error);
+            break;
+        }
     }
-  }
-  
-  if (pendingSyncs.length === 0) {
-    updateDriveStatus('✓ All changes synced!');
-  } else {
-    updateDriveStatus(`${pendingSyncs.length} changes still pending`);
-  }
+    
+    if (pendingSyncs.length === 0) {
+        // All synced successfully
+        isInOfflineMode = false;
+        offlineChangesPending = false;
+        localStorage.removeItem('focusWriterOfflineChanges');
+        updateDriveStatus('✓ All changes synced!');
+    } else {
+        updateDriveStatus(`${pendingSyncs.length} changes still pending`);
+    }
 }
 
 function verifyCurrentFile() {
@@ -2392,6 +2441,34 @@ function createFileInDrive(content, silent) {
 }
 
 async function loadFromGoogleDrive() {
+    // Check if there are unsaved offline changes
+    if (offlineChangesPending || localStorage.getItem('focusWriterOfflineChanges') === 'true') {
+        const modal = document.getElementById('conflictModal');
+        const content = document.getElementById('conflictModalContent');
+        const overlay = document.getElementById('overlay');
+        
+        content.innerHTML = `
+            <p style="color: #cc6666; font-weight: 600; margin-bottom: 15px;">
+                ⚠️ Unsaved Offline Changes
+            </p>
+            <p style="margin-bottom: 20px;">
+                You have unsaved changes that were made while offline. Loading from Google Drive will overwrite these changes.
+            </p>
+            <p style="color: #aaa; font-size: 12px; margin-bottom: 20px;">
+                It's recommended to sync your offline changes first, or download a backup before loading.
+            </p>
+            <div class="conflict-modal-buttons">
+                <button class="primary" onclick="syncOfflineChangesFirst()">Sync Offline Changes First</button>
+                <button class="secondary" onclick="downloadOfflineBackupThenLoad()">Backup & Load Anyway</button>
+                <button class="secondary" onclick="hideConflictModal()">Cancel</button>
+            </div>
+        `;
+        
+        modal.classList.add('active');
+        overlay.classList.add('active');
+        return;
+    }
+    
     if (!isSignedIn || !accessToken) { 
         updateDriveStatus('Not connected to Google Drive'); 
         return; 
@@ -2419,7 +2496,6 @@ async function loadFromGoogleDrive() {
             currentFileId = htmlFile.id;
             localStorage.setItem('focusWriterFileId', currentFileId);
             
-            // Get file metadata to track its modified time
             const metadataResponse = await fetch(
                 `https://www.googleapis.com/drive/v3/files/${htmlFile.id}?fields=modifiedTime`,
                 { headers: { 'Authorization': `Bearer ${accessToken}` } }
@@ -2429,7 +2505,6 @@ async function loadFromGoogleDrive() {
             const metadata = await metadataResponse.json();
             const driveModTime = new Date(metadata.modifiedTime).getTime();
             
-            // Get file content
             const contentResponse = await fetch(
                 `https://www.googleapis.com/drive/v3/files/${htmlFile.id}?alt=media`,
                 { headers: { 'Authorization': `Bearer ${accessToken}` } }
@@ -2442,7 +2517,6 @@ async function loadFromGoogleDrive() {
 
             localStorage.setItem('focusWriterContent', getEditorHTML());
             localStorage.setItem('focusWriterLastSaved', metadata.modifiedTime);
-            // ✨ CRITICAL: Set our last upload time to Drive's current modified time
             localStorage.setItem('focusWriterLastUploadTime', driveModTime.toString());
 
             updateStats();
@@ -2454,7 +2528,6 @@ async function loadFromGoogleDrive() {
         // 2) Fallback to TXT
         const txtFile = await findFileInFolder('BCMWriter.txt', TARGET_FOLDER_ID, accessToken);
         if (txtFile) {
-            // Get file metadata
             const metadataResponse = await fetch(
                 `https://www.googleapis.com/drive/v3/files/${txtFile.id}?fields=modifiedTime`,
                 { headers: { 'Authorization': `Bearer ${accessToken}` } }
@@ -2464,7 +2537,6 @@ async function loadFromGoogleDrive() {
             const metadata = await metadataResponse.json();
             const driveModTime = new Date(metadata.modifiedTime).getTime();
             
-            // Get file content
             const contentResponse = await fetch(
                 `https://www.googleapis.com/drive/v3/files/${txtFile.id}?alt=media`,
                 { headers: { 'Authorization': `Bearer ${accessToken}` } }
@@ -2477,7 +2549,6 @@ async function loadFromGoogleDrive() {
 
             localStorage.setItem('focusWriterContent', getEditorHTML());
             localStorage.setItem('focusWriterLastSaved', metadata.modifiedTime);
-            // ✨ CRITICAL: Set our last upload time to Drive's current modified time
             localStorage.setItem('focusWriterLastUploadTime', driveModTime.toString());
 
             updateStats();
@@ -2493,7 +2564,6 @@ async function loadFromGoogleDrive() {
     } catch (error) {
         console.error('Load error:', error);
         
-        // Handle specific auth errors
         if (error.message === 'UNAUTHORIZED' || error.message.includes('401')) {
             updateDriveStatus('Session expired. Please reconnect to Google Drive.');
             isSignedIn = false;
@@ -2509,7 +2579,6 @@ async function loadFromGoogleDrive() {
         showSaveStatus('error');
     }
 }
-
 
 function manualBackup() {
     console.log('🔍 Manual backup diagnostics:');
@@ -2547,6 +2616,45 @@ function manualBackup() {
     console.log('✅ All checks passed, proceeding with backup');
     backupToGoogleDrive(false);
 }
+
+async function syncOfflineChangesFirst() {
+    hideConflictModal();
+    updateDriveStatus('Syncing offline changes...');
+    
+    if (pendingSyncs.length > 0) {
+        await syncPendingChanges();
+    }
+    
+    // Clear offline mode
+    isInOfflineMode = false;
+    offlineChangesPending = false;
+    localStorage.removeItem('focusWriterOfflineChanges');
+    
+    updateDriveStatus('✓ Offline changes synced. You can now load from Drive.');
+}
+
+async function downloadOfflineBackupThenLoad() {
+    hideConflictModal();
+    
+    // Create backup of current offline work
+    const content = getEditorHTML();
+    const backupName = createLocalBackup(content, 'pre-load');
+    
+    if (backupName) {
+        updateDriveStatus(`Backup saved: ${backupName}. Loading from Drive...`);
+    }
+    
+    // Clear offline flags
+    isInOfflineMode = false;
+    offlineChangesPending = false;
+    localStorage.removeItem('focusWriterOfflineChanges');
+    pendingSyncs = [];
+    localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+    
+    // Now load from Drive
+    await loadFromGoogleDrive();
+}
+
 
 // ========================================
 // GOOGLE DRIVE - OAUTH & SETUP
@@ -2903,14 +3011,19 @@ overlay.addEventListener('click', () => {
     }
     
     // Editor listeners
-    currentEditor.addEventListener('input', syncEditors);
-    focusEditor.addEventListener('input', syncEditors);
+    currentEditor.addEventListener('input', () => {
+        updateStats();
+        debouncedAutoSave();
+    });
 
     currentEditor.addEventListener('mouseup', handleTextSelection);
-    focusEditor.addEventListener('mouseup', handleTextSelection);
-    
     currentEditor.addEventListener('touchend', handleTextSelection);
-    focusEditor.addEventListener('touchend', handleTextSelection);
+	
+	currentEditor.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text/plain');
+        document.execCommand('insertText', false, text);
+    });
     
     document.addEventListener('mousedown', (e) => {
         if (floatingToolbar && !floatingToolbar.contains(e.target)) {
@@ -2948,9 +3061,7 @@ overlay.addEventListener('click', () => {
     // Keyboard shortcuts
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            if (isInFocusMode) {
-                toggleFocusMode();
-            } else if (isMenuOpen) {
+            if (isMenuOpen) {
                 closeMenu();
             }
         }
@@ -3113,6 +3224,12 @@ if (sessionIdParam) {
 
 
 // Check if we have existing session
+if (localStorage.getItem('focusWriterOfflineChanges') === 'true') {
+    offlineChangesPending = true;
+    isInOfflineMode = true;
+    console.log('⚠️ Offline changes detected from previous session');
+}
+
 if (localStorage.getItem('focusWriterSessionId')) {
     sessionId = localStorage.getItem('focusWriterSessionId');
     isSignedIn = true;
@@ -3127,7 +3244,7 @@ if (localStorage.getItem('focusWriterSessionId')) {
     updateDriveUI();
     
     if (TARGET_FOLDER_ID) {
-        // ✨ ONLY START AUTO-BACKUP, DON'T AUTO-LOAD
+        // ONLY START AUTO-BACKUP, DON'T AUTO-LOAD
         // This prevents the 401 errors on initial page load
         updateDriveStatus('Connected to Google Drive. Click "Load from Drive" to sync.');
         startBackupTimer();
@@ -3143,11 +3260,10 @@ if (localStorage.getItem('focusWriterSessionId')) {
 } else {
     updateDriveUI();
 }
-
+    
 // Initialize editor if empty
 if (!localStorage.getItem('focusWriterContent')) {
     currentEditor.innerHTML = '<br><br>';
-    focusEditor.innerHTML = '<br><br>';
     
     const range = document.createRange();
     const selection = window.getSelection();
@@ -3181,7 +3297,6 @@ window.manualBackup = manualBackup;
 window.disconnectGoogleDrive = disconnectGoogleDrive;
 window.newDocument = newDocument;
 window.saveDocument = saveDocument;
-window.toggleFocusMode = toggleFocusMode;
 window.closeSetupModal = closeSetupModal;
 window.showSetupWizardStep2 = showSetupWizardStep2;
 window.showExistingFolderInstructions = showExistingFolderInstructions;
@@ -3192,6 +3307,8 @@ window.applyMarkdown = applyMarkdown;
 window.showConflictModal = showConflictModal;
 window.cancelConflictOverride = cancelConflictOverride;
 window.confirmConflictOverride = confirmConflictOverride;
+window.syncOfflineChangesFirst = syncOfflineChangesFirst;
+window.downloadOfflineBackupThenLoad = downloadOfflineBackupThenLoad;
 
 console.log('✅ BCM Writer initialized successfully!');
 </script>
