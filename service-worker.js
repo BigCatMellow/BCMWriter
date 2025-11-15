@@ -3,6 +3,8 @@ const ASSETS_TO_CACHE = [
   '/BCMWriter/',
   '/BCMWriter/index.html',
   '/BCMWriter/manifest.json',
+  '/BCMWriter/icons/icon-192.png',  // ← ADD THIS
+  '/BCMWriter/icons/icon-512.png',  // ← ADD THIS
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap'
 ];
 
