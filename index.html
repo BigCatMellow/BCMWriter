@@ -1702,7 +1702,6 @@ function saveDocument() {
 function newDocument() {
     if (confirm('Start a new document? Any unsaved changes will be lost.')) {
         currentEditor.innerHTML = '';
-        focusEditor.innerHTML = '';
         clearSavedContent();
         currentFileId = null;
         updateStats();
@@ -2513,7 +2512,7 @@ async function loadFromGoogleDrive() {
             if (!contentResponse.ok) throw new Error(`HTTP ${contentResponse.status}: ${contentResponse.statusText}`);
             const html = await contentResponse.text();
             
-            (isInFocusMode ? focusEditor : currentEditor).innerHTML = html;
+            currentEditor.innerHTML = html;
 
             localStorage.setItem('focusWriterContent', getEditorHTML());
             localStorage.setItem('focusWriterLastSaved', metadata.modifiedTime);
@@ -2545,7 +2544,7 @@ async function loadFromGoogleDrive() {
             if (!contentResponse.ok) throw new Error(`HTTP ${contentResponse.status}: ${contentResponse.statusText}`);
             const txt = await contentResponse.text();
             
-            (isInFocusMode ? focusEditor : currentEditor).textContent = txt;
+            currentEditor.textContent = txt;
 
             localStorage.setItem('focusWriterContent', getEditorHTML());
             localStorage.setItem('focusWriterLastSaved', metadata.modifiedTime);
